@@ -21,10 +21,11 @@ function signToken(userId: string): string {
 }
 
 export async function register(req: Request, res: Response): Promise<void> {
-  const { email, password, name } = req.body as {
+  const { email, password, name, requiredHours } = req.body as {
     email?: unknown;
     password?: unknown;
     name?: unknown;
+    requiredHours?: unknown;
   };
 
   if (typeof email !== "string" || !email.includes("@")) {
@@ -32,7 +33,18 @@ export async function register(req: Request, res: Response): Promise<void> {
     return;
   }
   if (typeof password !== "string" || password.length < 8) {
-    res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+    res.status(400).json({
+      success: false,
+      message: "Password must be at least 8 characters",
+    });
+    return;
+  }
+  const parsedHours = Number(requiredHours);
+  if (!Number.isInteger(parsedHours) || parsedHours < 1) {
+    res.status(400).json({
+      success: false,
+      message: "Required hours must be an integer of at least 1",
+    });
     return;
   }
 
@@ -40,7 +52,8 @@ export async function register(req: Request, res: Response): Promise<void> {
     const user = await authService.register(
       email.toLowerCase().trim(),
       password,
-      typeof name === "string" ? name.trim() || undefined : undefined
+      parsedHours,
+      typeof name === "string" ? name.trim() || undefined : undefined,
     );
 
     const token = signToken(user.id);
@@ -48,15 +61,22 @@ export async function register(req: Request, res: Response): Promise<void> {
     res.status(201).json({ success: true, data: user });
   } catch (err) {
     const e = err as Error & { statusCode?: number };
-    res.status(e.statusCode ?? 500).json({ success: false, message: e.message });
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
   }
 }
 
 export async function login(req: Request, res: Response): Promise<void> {
-  const { email, password } = req.body as { email?: unknown; password?: unknown };
+  const { email, password } = req.body as {
+    email?: unknown;
+    password?: unknown;
+  };
 
   if (typeof email !== "string" || typeof password !== "string") {
-    res.status(400).json({ success: false, message: "Email and password required" });
+    res
+      .status(400)
+      .json({ success: false, message: "Email and password required" });
     return;
   }
 
@@ -68,7 +88,9 @@ export async function login(req: Request, res: Response): Promise<void> {
     res.status(200).json({ success: true, data: user });
   } catch (err) {
     const e = err as Error & { statusCode?: number };
-    res.status(e.statusCode ?? 500).json({ success: false, message: e.message });
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
   }
 }
 
@@ -84,6 +106,8 @@ export async function me(req: Request, res: Response): Promise<void> {
     res.status(200).json({ success: true, data: user });
   } catch (err) {
     const e = err as Error & { statusCode?: number };
-    res.status(e.statusCode ?? 500).json({ success: false, message: e.message });
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
   }
 }

@@ -7,6 +7,7 @@ export interface SafeUser {
   id: string;
   email: string;
   name: string | null;
+  requiredHours: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +17,7 @@ function stripHash(user: {
   email: string;
   passwordHash: string;
   name: string | null;
+  requiredHours: number;
   createdAt: Date;
   updatedAt: Date;
 }): SafeUser {
@@ -26,6 +28,7 @@ function stripHash(user: {
 export async function register(
   email: string,
   password: string,
+  requiredHours: number,
   name?: string
 ): Promise<SafeUser> {
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -38,7 +41,7 @@ export async function register(
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
   const user = await prisma.user.create({
-    data: { email, passwordHash, name: name ?? null },
+    data: { email, passwordHash, name: name ?? null, requiredHours },
   });
 
   return stripHash(user);
