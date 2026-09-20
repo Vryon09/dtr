@@ -87,24 +87,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <Settings size={20} />
             <span>Settings</span>
           </NavLink>
-        </nav>
-      </div>
 
-      <div className="sidebar-footer">
-        <button
-          onClick={handleLogout}
-          className="sidebar-link"
-          style={{
-            width: "100%",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          <LogOut size={20} color="var(--danger)" />
-          <span style={{ color: "var(--danger)" }}>Log Out</span>
-        </button>
+          <div
+            style={{
+              height: "1px",
+              background: "var(--border-subtle)",
+              margin: "8px 0",
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="sidebar-link"
+            style={{
+              width: "100%",
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <LogOut size={20} color="var(--danger)" />
+            <span style={{ color: "var(--danger)" }}>Log Out</span>
+          </button>
+        </nav>
       </div>
     </aside>
   );

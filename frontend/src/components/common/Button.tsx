@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 export type ButtonVariant = 'primary' | 'success' | 'danger' | 'outline';
 
@@ -25,9 +26,9 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading ? (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-          Loading...
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <Loader2 size={18} className="animate-spin" />
+          <span>Loading...</span>
         </span>
       ) : (
         <>

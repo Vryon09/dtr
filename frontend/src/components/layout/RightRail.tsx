@@ -1,5 +1,5 @@
 import React from 'react';
-import { User as UserIcon, Award, ShieldCheck } from 'lucide-react';
+import { Award, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { Badge } from '../common/Badge';
 import type { TodayAttendanceResponse, AttendanceSummaryResponse } from '../../types/attendance';
@@ -13,6 +13,13 @@ interface RightRailProps {
 
 export const RightRail: React.FC<RightRailProps> = ({ todayData, summaryData }) => {
   const { user } = useAuth();
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
 
   const getStatusBadge = () => {
     if (!todayData || todayData.status === 'NOT_CLOCKED_IN') {
@@ -39,9 +46,13 @@ export const RightRail: React.FC<RightRailProps> = ({ todayData, summaryData }) 
             justifyContent: 'center',
             margin: '0 auto 16px',
             boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)',
+            fontSize: '1.5rem',
+            fontWeight: 800,
+            color: 'var(--primary)',
+            letterSpacing: '0.04em',
           }}
         >
-          <UserIcon size={36} color="var(--primary)" />
+          {getInitials(user?.name)}
         </div>
 
         <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-main)' }}>
