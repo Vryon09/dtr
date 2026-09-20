@@ -20,8 +20,14 @@ export class ApiError extends Error {
   }
 }
 
+const rawBaseUrl = (import.meta.env.VITE_API_URL || "")
+  .toString()
+  .trim()
+  .replace(/^["']+|["']+$/g, "")
+  .replace(/\/+$/, "");
+
 export const axiosInstance = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/api`,
+  baseURL: rawBaseUrl ? `${rawBaseUrl}/api` : "/api",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
