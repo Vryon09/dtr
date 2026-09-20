@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 /generated/prisma
+dtr-backend-features.md
+/features

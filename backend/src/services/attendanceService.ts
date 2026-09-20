@@ -4,8 +4,11 @@ export interface FormattedAttendance {
   id: string;
   userId: string;
   date: Date;
+  workingDate?: string;
   clockIn: Date;
+  clockInAt?: string;
   clockOut: Date | null;
+  clockOutAt?: string | null;
   notes: string | null;
   renderedHours: number | null;
   createdAt: Date;
@@ -52,6 +55,9 @@ function formatAttendance(attendance: {
 
   return {
     ...attendance,
+    workingDate: attendance.date.toISOString(),
+    clockInAt: attendance.clockIn.toISOString(),
+    clockOutAt: attendance.clockOut ? attendance.clockOut.toISOString() : null,
     renderedHours,
   };
 }
@@ -210,4 +216,175 @@ export async function getSummary(
     remainingHours,
     progressPercentage,
   };
+}
+
+export async function createManual(
+  userId: string,
+  data: {
+    date: string;
+    clockIn: string;
+    clockOut?: string;
+    notes?: string;
+  }
+): Promise<FormattedAttendance> {
+  const targetDate = new Date(`${data.date}T00:00:00.000Z`);
+  const clockInDate = new Date(data.clockIn);
+  const clockOutDate = data.clockOut ? new Date(data.clockOut) : null;
+
+  if (clockOutDate && clockOutDate <= clockInDate) {
+    const err = new Error("Clock out time must be later than clock in time") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const existing = await prisma.attendance.findUnique({
+    where: {
+      userId_date: {
+        userId,
+        date: targetDate,
+      },
+    },
+  });
+
+  if (existing) {
+    const err = new Error("Attendance already recorded for this date") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!clockOutDate) {
+    const active = await prisma.attendance.findFirst({
+      where: { userId, clockOut: null },
+    });
+    if (active) {
+      const err = new Error("User already has an active clock-in") as Error & {
+        statusCode: number;
+      };
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  const attendance = await prisma.attendance.create({
+    data: {
+      userId,
+      date: targetDate,
+      clockIn: clockInDate,
+      clockOut: clockOutDate,
+      notes: data.notes ?? null,
+    },
+  });
+
+  return formatAttendance(attendance);
+}
+
+export async function updateAttendance(
+  userId: string,
+  id: string,
+  data: {
+    date?: string;
+    clockIn?: string;
+    clockOut?: string | null;
+    notes?: string | null;
+  }
+): Promise<FormattedAttendance> {
+  const record = await prisma.attendance.findFirst({
+    where: { id, userId },
+  });
+
+  if (!record) {
+    const err = new Error("Attendance record not found") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 404;
+    throw err;
+  }
+
+  let newDate = record.date;
+  if (data.date) {
+    newDate = new Date(`${data.date}T00:00:00.000Z`);
+    if (newDate.getTime() !== record.date.getTime()) {
+      const collision = await prisma.attendance.findUnique({
+        where: {
+          userId_date: {
+            userId,
+            date: newDate,
+          },
+        },
+      });
+      if (collision) {
+        const err = new Error("Attendance already recorded for this date") as Error & {
+          statusCode: number;
+        };
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+  }
+
+  const finalClockIn = data.clockIn ? new Date(data.clockIn) : record.clockIn;
+  const finalClockOut =
+    data.clockOut !== undefined
+      ? data.clockOut
+        ? new Date(data.clockOut)
+        : null
+      : record.clockOut;
+
+  if (finalClockOut && finalClockOut <= finalClockIn) {
+    const err = new Error("Clock out time must be later than clock in time") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!finalClockOut && record.clockOut !== null) {
+    const active = await prisma.attendance.findFirst({
+      where: { userId, clockOut: null, id: { not: id } },
+    });
+    if (active) {
+      const err = new Error("User already has an active clock-in") as Error & {
+        statusCode: number;
+      };
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  const updated = await prisma.attendance.update({
+    where: { id },
+    data: {
+      date: newDate,
+      clockIn: finalClockIn,
+      clockOut: finalClockOut,
+      notes: data.notes !== undefined ? data.notes : record.notes,
+    },
+  });
+
+  return formatAttendance(updated);
+}
+
+export async function deleteAttendance(
+  userId: string,
+  id: string
+): Promise<void> {
+  const record = await prisma.attendance.findFirst({
+    where: { id, userId },
+  });
+
+  if (!record) {
+    const err = new Error("Attendance record not found") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 404;
+    throw err;
+  }
+
+  await prisma.attendance.delete({
+    where: { id },
+  });
 }
