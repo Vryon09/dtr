@@ -102,6 +102,14 @@ export const DeleteAttendanceModal: React.FC<DeleteAttendanceModalProps> = ({
             <span style={{ color: 'var(--text-muted)' }}>Clock Out:</span>
             <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{formatTime(record.clockOutAt)}</span>
           </div>
+          {Boolean(record.breakStartAt && record.breakEndAt) && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Break Time:</span>
+              <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+                {formatTime(record.breakStartAt)} - {formatTime(record.breakEndAt)} ({record.breakMinutes}m)
+              </span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ color: 'var(--text-muted)' }}>Rendered Hours:</span>
             <strong style={{ color: 'var(--primary)' }}>

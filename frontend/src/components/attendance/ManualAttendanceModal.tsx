@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Clock, Calendar, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Clock, Calendar, CheckCircle2, Coffee } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { useCreateManualAttendanceMutation } from '../../hooks/useAttendanceQueries';
 import {
@@ -28,6 +28,9 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
   const [clockInTime, setClockInTime] = useState<string>('08:00');
   const [clockOutTime, setClockOutTime] = useState<string>('17:00');
   const [hasClockOut, setHasClockOut] = useState<boolean>(true);
+  const [hasBreak, setHasBreak] = useState<boolean>(false);
+  const [breakStartTime, setBreakStartTime] = useState<string>('12:00');
+  const [breakEndTime, setBreakEndTime] = useState<string>('13:00');
   const [notes, setNotes] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -40,6 +43,9 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
       setClockInTime('08:00');
       setClockOutTime('17:00');
       setHasClockOut(true);
+      setHasBreak(false);
+      setBreakStartTime('12:00');
+      setBreakEndTime('13:00');
       setNotes('');
       setErrorMessage(null);
     }
@@ -52,18 +58,44 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
 
   const isDuplicateDate = Boolean(conflictingRecord);
 
-  // Calculate estimated rendered hours if both times are present
+  // Calculate estimated rendered hours if times are present
   let estimatedHours: number | null = null;
+  let breakDurationHours: number = 0;
   let timeError: string | null = null;
 
   if (clockInTime && hasClockOut && clockOutTime) {
     const start = new Date(combineDateAndTimeManila(date, clockInTime)).getTime();
     const end = new Date(combineDateAndTimeManila(date, clockOutTime)).getTime();
+
     if (end <= start) {
       timeError = 'Clock out time must be later than clock in time';
     } else {
-      const diffHrs = (end - start) / (1000 * 60 * 60);
-      estimatedHours = Math.round(diffHrs * 100) / 100;
+      let netDiffMs = end - start;
+
+      if (hasBreak) {
+        if (!breakStartTime || !breakEndTime) {
+          timeError = 'Please specify both break start and break end time';
+        } else {
+          const bStart = new Date(combineDateAndTimeManila(date, breakStartTime)).getTime();
+          const bEnd = new Date(combineDateAndTimeManila(date, breakEndTime)).getTime();
+
+          if (bEnd <= bStart) {
+            timeError = 'Break end time must be later than break start time';
+          } else if (bStart < start) {
+            timeError = 'Break start time cannot be earlier than clock in time';
+          } else if (bEnd > end) {
+            timeError = 'Break end time cannot be later than clock out time';
+          } else {
+            const breakDiffMs = bEnd - bStart;
+            breakDurationHours = Math.round((breakDiffMs / (1000 * 60 * 60)) * 100) / 100;
+            netDiffMs = Math.max(0, netDiffMs - breakDiffMs);
+          }
+        }
+      }
+
+      if (!timeError) {
+        estimatedHours = Math.round((netDiffMs / (1000 * 60 * 60)) * 100) / 100;
+      }
     }
   }
 
@@ -79,10 +111,20 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
         ? combineDateAndTimeManila(date, clockOutTime)
         : undefined;
 
+      const breakStartIso = hasBreak && breakStartTime
+        ? combineDateAndTimeManila(date, breakStartTime)
+        : undefined;
+
+      const breakEndIso = hasBreak && breakEndTime
+        ? combineDateAndTimeManila(date, breakEndTime)
+        : undefined;
+
       await createMutation.mutateAsync({
         date,
         clockIn: clockInIso,
         clockOut: clockOutIso,
+        breakStart: breakStartIso,
+        breakEnd: breakEndIso,
         notes: notes.trim() || undefined,
       });
 
@@ -161,7 +203,7 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
           </span>
         </div>
 
-        {/* Time Inputs Grid */}
+        {/* Shift Time Inputs Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <div className="form-group">
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -209,6 +251,63 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
           </label>
         </div>
 
+        {/* Optional Break Section */}
+        <div
+          style={{
+            background: 'var(--bg-subtle)',
+            padding: '14px 16px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              type="checkbox"
+              id="hasBreakToggle"
+              checked={hasBreak}
+              onChange={(e) => setHasBreak(e.target.checked)}
+              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+            />
+            <label htmlFor="hasBreakToggle" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Coffee size={15} color="#b45309" />
+              Add Break Time (Optional - Deducts from rendered hours)
+            </label>
+          </div>
+
+          {hasBreak && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.813rem' }}>
+                  Break Start Time
+                </label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={breakStartTime}
+                  onChange={(e) => setBreakStartTime(e.target.value)}
+                  required={hasBreak}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.813rem' }}>
+                  Break End Time
+                </label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={breakEndTime}
+                  onChange={(e) => setBreakEndTime(e.target.value)}
+                  required={hasBreak}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Time Error */}
         {timeError && (
           <div style={{ color: 'var(--danger)', fontSize: '0.813rem', fontWeight: 500 }}>
@@ -222,7 +321,7 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              justifyContent: 'space-between',
               padding: '10px 14px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--primary-light)',
@@ -231,8 +330,15 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
               fontWeight: 600,
             }}
           >
-            <CheckCircle2 size={16} />
-            Rendered Time: {estimatedHours} hour{estimatedHours !== 1 ? 's' : ''}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle2 size={16} />
+              <span>Rendered Time: {estimatedHours} hour{estimatedHours !== 1 ? 's' : ''}</span>
+            </div>
+            {hasBreak && breakDurationHours > 0 && (
+              <span style={{ fontSize: '0.813rem', color: '#b45309' }}>
+                ({breakDurationHours} hr break deducted)
+              </span>
+            )}
           </div>
         )}
 

@@ -40,6 +40,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
               <th>{isCompact ? 'Date' : 'Working Date'}</th>
               <th>Clock In</th>
               <th>Clock Out</th>
+              <th>Break</th>
               <th>{isCompact ? 'Hours' : 'Rendered Hours'}</th>
               <th>Status</th>
               <th>Notes</th>
@@ -49,7 +50,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
           <tbody>
             {displayRecords.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 7 : 6} style={{ textAlign: 'center', padding: isCompact ? '20px 0' : '32px 0' }}>
+                <td colSpan={showActions ? 8 : 7} style={{ textAlign: 'center', padding: isCompact ? '20px 0' : '32px 0' }}>
                   <EmptyState
                     size={isCompact ? 'sm' : 'md'}
                     title={emptyTitle || 'No attendance records'}
@@ -60,11 +61,28 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             ) : (
               displayRecords.map((record) => {
                 const isCompleted = !!record.clockOutAt;
+                const hasBreakData = Boolean(record.breakStartAt && record.breakEndAt);
                 return (
                   <tr key={record.id}>
                     <td style={{ fontWeight: 600 }}>{formatWorkingDate(record.workingDate)}</td>
                     <td>{formatTime(record.clockInAt)}</td>
                     <td>{formatTime(record.clockOutAt)}</td>
+                    <td style={{ fontSize: '0.813rem', color: hasBreakData ? 'var(--text-main)' : 'var(--text-light)' }}>
+                      {hasBreakData ? (
+                        isCompact ? (
+                          `${record.breakMinutes}m`
+                        ) : (
+                          <span>
+                            {formatTime(record.breakStartAt)} - {formatTime(record.breakEndAt)}
+                            <span style={{ color: 'var(--text-muted)', marginLeft: '4px' }}>
+                              ({record.breakMinutes}m)
+                            </span>
+                          </span>
+                        )
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td style={{ fontWeight: 700, color: isCompleted ? 'var(--primary)' : 'var(--text-muted)' }}>
                       {isCompleted ? formatHours(record.renderedHours) : '--'}
                     </td>

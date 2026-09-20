@@ -27,10 +27,11 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{title}</h3>
+        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexShrink: 0 }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>{title}</h3>
           <button
             onClick={onClose}
+            aria-label="Close modal"
             style={{
               fontSize: '1.5rem',
               lineHeight: 1,
@@ -38,12 +39,16 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
               cursor: 'pointer',
               background: 'none',
               border: 'none',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             &times;
           </button>
         </div>
-        <div>{children}</div>
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   );

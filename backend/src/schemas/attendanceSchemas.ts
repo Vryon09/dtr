@@ -22,6 +22,18 @@ export const createManualAttendanceSchema = z
         message: "Valid clock out time is required",
       })
       .optional(),
+    breakStart: z
+      .string()
+      .refine((val) => !isNaN(Date.parse(val)), {
+        message: "Valid break start time is required",
+      })
+      .optional(),
+    breakEnd: z
+      .string()
+      .refine((val) => !isNaN(Date.parse(val)), {
+        message: "Valid break end time is required",
+      })
+      .optional(),
     notes: z
       .string()
       .trim()
@@ -38,6 +50,37 @@ export const createManualAttendanceSchema = z
     {
       message: "Clock out time must be later than clock in time",
       path: ["clockOut"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.breakStart && data.breakEnd) {
+        return new Date(data.breakEnd).getTime() > new Date(data.breakStart).getTime();
+      }
+      return true;
+    },
+    {
+      message: "Break end time must be later than break start time",
+      path: ["breakEnd"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.breakStart) {
+        const bStart = new Date(data.breakStart).getTime();
+        const cIn = new Date(data.clockIn).getTime();
+        if (bStart < cIn) return false;
+      }
+      if (data.breakEnd && data.clockOut) {
+        const bEnd = new Date(data.breakEnd).getTime();
+        const cOut = new Date(data.clockOut).getTime();
+        if (bEnd > cOut) return false;
+      }
+      return true;
+    },
+    {
+      message: "Break must be within clock in and clock out times",
+      path: ["breakStart"],
     }
   );
 
@@ -60,6 +103,20 @@ export const updateAttendanceSchema = z
       .refine((val) => val === null || val === undefined || !isNaN(Date.parse(val)), {
         message: "Valid clock out time is required",
       }),
+    breakStart: z
+      .string()
+      .nullable()
+      .optional()
+      .refine((val) => val === null || val === undefined || !isNaN(Date.parse(val)), {
+        message: "Valid break start time is required",
+      }),
+    breakEnd: z
+      .string()
+      .nullable()
+      .optional()
+      .refine((val) => val === null || val === undefined || !isNaN(Date.parse(val)), {
+        message: "Valid break end time is required",
+      }),
     notes: z
       .string()
       .trim()
@@ -77,6 +134,18 @@ export const updateAttendanceSchema = z
     {
       message: "Clock out time must be later than clock in time",
       path: ["clockOut"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.breakStart && data.breakEnd) {
+        return new Date(data.breakEnd).getTime() > new Date(data.breakStart).getTime();
+      }
+      return true;
+    },
+    {
+      message: "Break end time must be later than break start time",
+      path: ["breakEnd"],
     }
   );
 

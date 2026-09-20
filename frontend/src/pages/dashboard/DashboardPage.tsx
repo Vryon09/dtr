@@ -7,6 +7,8 @@ import {
   useAttendanceSummary,
   useAttendanceHistory,
   useClockInMutation,
+  useStartBreakMutation,
+  useEndBreakMutation,
   useClockOutMutation,
 } from '../../hooks/useAttendanceQueries';
 import { MetricsGrid } from '../../components/attendance/MetricsGrid';
@@ -43,10 +45,16 @@ export const DashboardPage: React.FC = () => {
   } = useAttendanceHistory();
 
   const clockInMutation = useClockInMutation();
+  const startBreakMutation = useStartBreakMutation();
+  const endBreakMutation = useEndBreakMutation();
   const clockOutMutation = useClockOutMutation();
 
   const isLoading = isTodayLoading || isSummaryLoading || isHistoryLoading;
-  const isClocking = clockInMutation.isPending || clockOutMutation.isPending;
+  const isClocking =
+    clockInMutation.isPending ||
+    startBreakMutation.isPending ||
+    endBreakMutation.isPending ||
+    clockOutMutation.isPending;
 
   // Modals state
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
@@ -61,6 +69,14 @@ export const DashboardPage: React.FC = () => {
 
   const handleClockIn = async (notes?: string) => {
     await clockInMutation.mutateAsync({ notes });
+  };
+
+  const handleStartBreak = async () => {
+    await startBreakMutation.mutateAsync();
+  };
+
+  const handleEndBreak = async () => {
+    await endBreakMutation.mutateAsync();
   };
 
   const handleClockOut = async (notes?: string) => {
@@ -142,6 +158,8 @@ export const DashboardPage: React.FC = () => {
           <ClockCard
             todayData={todayData}
             onClockIn={handleClockIn}
+            onStartBreak={handleStartBreak}
+            onEndBreak={handleEndBreak}
             onClockOut={handleClockOut}
             isLoading={isClocking}
           />

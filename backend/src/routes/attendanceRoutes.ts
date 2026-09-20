@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
   clockIn,
+  startBreak,
+  endBreak,
   clockOut,
   getToday,
   getHistory,
@@ -22,6 +24,8 @@ const router = Router();
 router.use(requireAuth);
 
 router.post("/clock-in", validate(clockInSchema), clockIn);
+router.post("/break-start", startBreak);
+router.post("/break-end", endBreak);
 router.post("/clock-out", clockOut);
 router.post("/manual", validate(createManualAttendanceSchema), createManual);
 router.put("/:id", validate(updateAttendanceSchema), updateAttendance);

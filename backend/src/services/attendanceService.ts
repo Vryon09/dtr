@@ -9,6 +9,11 @@ export interface FormattedAttendance {
   clockInAt?: string;
   clockOut: Date | null;
   clockOutAt?: string | null;
+  breakStart: Date | null;
+  breakStartAt?: string | null;
+  breakEnd: Date | null;
+  breakEndAt?: string | null;
+  breakMinutes: number;
   notes: string | null;
   renderedHours: number | null;
   createdAt: Date;
@@ -33,10 +38,26 @@ export function getManilaDate(date = new Date()): Date {
   return new Date(`${manilaDateStr}T00:00:00.000Z`);
 }
 
-function calculateRenderedHours(clockIn: Date, clockOut: Date): number {
+function calculateRenderedHours(
+  clockIn: Date,
+  clockOut: Date,
+  breakStart?: Date | null,
+  breakEnd?: Date | null,
+  fallbackBreakMinutes = 0
+): number {
   const diffMs = clockOut.getTime() - clockIn.getTime();
-  const hours = diffMs / (1000 * 60 * 60);
-  return Math.round(hours * 100) / 100;
+  const rawHours = diffMs / (1000 * 60 * 60);
+
+  let breakHours = 0;
+  if (breakStart && breakEnd) {
+    const breakMs = Math.max(0, breakEnd.getTime() - breakStart.getTime());
+    breakHours = breakMs / (1000 * 60 * 60);
+  } else if (fallbackBreakMinutes > 0) {
+    breakHours = fallbackBreakMinutes / 60;
+  }
+
+  const netHours = Math.max(0, rawHours - breakHours);
+  return Math.round(netHours * 100) / 100;
 }
 
 function formatAttendance(attendance: {
@@ -45,16 +66,32 @@ function formatAttendance(attendance: {
   date: Date;
   clockIn: Date;
   clockOut: Date | null;
+  breakStart?: Date | null;
+  breakEnd?: Date | null;
+  breakMinutes?: number | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): FormattedAttendance {
+  const breakStart = attendance.breakStart ?? null;
+  const breakEnd = attendance.breakEnd ?? null;
+  let breakMinutes = attendance.breakMinutes ?? 0;
+
+  if (breakStart && breakEnd) {
+    breakMinutes = Math.round((breakEnd.getTime() - breakStart.getTime()) / (1000 * 60));
+  }
+
   const renderedHours = attendance.clockOut
-    ? calculateRenderedHours(attendance.clockIn, attendance.clockOut)
+    ? calculateRenderedHours(attendance.clockIn, attendance.clockOut, breakStart, breakEnd, breakMinutes)
     : null;
 
   return {
     ...attendance,
+    breakStart,
+    breakStartAt: breakStart ? breakStart.toISOString() : null,
+    breakEnd,
+    breakEndAt: breakEnd ? breakEnd.toISOString() : null,
+    breakMinutes,
     workingDate: attendance.date.toISOString(),
     clockInAt: attendance.clockIn.toISOString(),
     clockOutAt: attendance.clockOut ? attendance.clockOut.toISOString() : null,
@@ -102,11 +139,101 @@ export async function clockIn(
       date: todayDate,
       clockIn: now,
       clockOut: null,
+      breakStart: null,
+      breakEnd: null,
+      breakMinutes: 0,
       notes: notes ?? null,
     },
   });
 
   return formatAttendance(attendance);
+}
+
+export async function startBreak(
+  userId: string
+): Promise<FormattedAttendance> {
+  const now = new Date();
+
+  const active = await prisma.attendance.findFirst({
+    where: { userId, clockOut: null },
+  });
+  if (!active) {
+    const err = new Error("No active clock-in found to start break") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (active.breakStart && !active.breakEnd) {
+    const err = new Error("You are already on break") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (active.breakStart && active.breakEnd) {
+    const err = new Error("Break has already been logged for this session") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updated = await prisma.attendance.update({
+    where: { id: active.id },
+    data: {
+      breakStart: now,
+    },
+  });
+
+  return formatAttendance(updated);
+}
+
+export async function endBreak(
+  userId: string
+): Promise<FormattedAttendance> {
+  const now = new Date();
+
+  const active = await prisma.attendance.findFirst({
+    where: { userId, clockOut: null },
+  });
+  if (!active) {
+    const err = new Error("No active clock-in found") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!active.breakStart || active.breakEnd) {
+    const err = new Error("No active break found to end") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (now <= active.breakStart) {
+    const err = new Error("Break end time must be later than break start time") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const breakMinutes = Math.round((now.getTime() - active.breakStart.getTime()) / (1000 * 60));
+
+  const updated = await prisma.attendance.update({
+    where: { id: active.id },
+    data: {
+      breakEnd: now,
+      breakMinutes,
+    },
+  });
+
+  return formatAttendance(updated);
 }
 
 export async function clockOut(
@@ -133,9 +260,22 @@ export async function clockOut(
     throw err;
   }
 
+  let finalBreakEnd = active.breakEnd;
+  let finalBreakMinutes = active.breakMinutes;
+
+  // Auto-close open break if user clocks out while on break
+  if (active.breakStart && !active.breakEnd) {
+    finalBreakEnd = now;
+    finalBreakMinutes = Math.round((now.getTime() - active.breakStart.getTime()) / (1000 * 60));
+  }
+
   const updated = await prisma.attendance.update({
     where: { id: active.id },
-    data: { clockOut: now },
+    data: {
+      clockOut: now,
+      breakEnd: finalBreakEnd,
+      breakMinutes: finalBreakMinutes,
+    },
   });
 
   return formatAttendance(updated);
@@ -195,9 +335,13 @@ export async function getSummary(
 
   const totalCompletedHours = completedAttendances.reduce((sum, att) => {
     if (!att.clockOut) return sum;
-    const hours =
-      (att.clockOut.getTime() - att.clockIn.getTime()) / (1000 * 60 * 60);
-    return sum + hours;
+    let breakMins = att.breakMinutes || 0;
+    if (att.breakStart && att.breakEnd) {
+      breakMins = Math.max(0, Math.round((att.breakEnd.getTime() - att.breakStart.getTime()) / (1000 * 60)));
+    }
+    const totalShiftHours = (att.clockOut.getTime() - att.clockIn.getTime()) / (1000 * 60 * 60);
+    const netHours = Math.max(0, totalShiftHours - (breakMins / 60));
+    return sum + netHours;
   }, 0);
 
   const completedHours = Math.round(totalCompletedHours * 100) / 100;
@@ -224,15 +368,27 @@ export async function createManual(
     date: string;
     clockIn: string;
     clockOut?: string;
+    breakStart?: string;
+    breakEnd?: string;
     notes?: string;
   }
 ): Promise<FormattedAttendance> {
   const targetDate = new Date(`${data.date}T00:00:00.000Z`);
   const clockInDate = new Date(data.clockIn);
   const clockOutDate = data.clockOut ? new Date(data.clockOut) : null;
+  const breakStartDate = data.breakStart ? new Date(data.breakStart) : null;
+  const breakEndDate = data.breakEnd ? new Date(data.breakEnd) : null;
 
   if (clockOutDate && clockOutDate <= clockInDate) {
     const err = new Error("Clock out time must be later than clock in time") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (breakStartDate && breakEndDate && breakEndDate <= breakStartDate) {
+    const err = new Error("Break end time must be later than break start time") as Error & {
       statusCode: number;
     };
     err.statusCode = 400;
@@ -269,12 +425,20 @@ export async function createManual(
     }
   }
 
+  let breakMinutes = 0;
+  if (breakStartDate && breakEndDate) {
+    breakMinutes = Math.round((breakEndDate.getTime() - breakStartDate.getTime()) / (1000 * 60));
+  }
+
   const attendance = await prisma.attendance.create({
     data: {
       userId,
       date: targetDate,
       clockIn: clockInDate,
       clockOut: clockOutDate,
+      breakStart: breakStartDate,
+      breakEnd: breakEndDate,
+      breakMinutes,
       notes: data.notes ?? null,
     },
   });
@@ -289,6 +453,8 @@ export async function updateAttendance(
     date?: string;
     clockIn?: string;
     clockOut?: string | null;
+    breakStart?: string | null;
+    breakEnd?: string | null;
     notes?: string | null;
   }
 ): Promise<FormattedAttendance> {
@@ -334,8 +500,30 @@ export async function updateAttendance(
         : null
       : record.clockOut;
 
+  const finalBreakStart =
+    data.breakStart !== undefined
+      ? data.breakStart
+        ? new Date(data.breakStart)
+        : null
+      : record.breakStart;
+
+  const finalBreakEnd =
+    data.breakEnd !== undefined
+      ? data.breakEnd
+        ? new Date(data.breakEnd)
+        : null
+      : record.breakEnd;
+
   if (finalClockOut && finalClockOut <= finalClockIn) {
     const err = new Error("Clock out time must be later than clock in time") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (finalBreakStart && finalBreakEnd && finalBreakEnd <= finalBreakStart) {
+    const err = new Error("Break end time must be later than break start time") as Error & {
       statusCode: number;
     };
     err.statusCode = 400;
@@ -355,12 +543,20 @@ export async function updateAttendance(
     }
   }
 
+  let finalBreakMinutes = 0;
+  if (finalBreakStart && finalBreakEnd) {
+    finalBreakMinutes = Math.round((finalBreakEnd.getTime() - finalBreakStart.getTime()) / (1000 * 60));
+  }
+
   const updated = await prisma.attendance.update({
     where: { id },
     data: {
       date: newDate,
       clockIn: finalClockIn,
       clockOut: finalClockOut,
+      breakStart: finalBreakStart,
+      breakEnd: finalBreakEnd,
+      breakMinutes: finalBreakMinutes,
       notes: data.notes !== undefined ? data.notes : record.notes,
     },
   });

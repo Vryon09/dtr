@@ -19,6 +19,30 @@ export async function clockIn(req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function startBreak(req: Request, res: Response): Promise<void> {
+  try {
+    const attendance = await attendanceService.startBreak(req.user!.id);
+    res.status(200).json({ success: true, data: attendance });
+  } catch (err) {
+    const e = err as Error & { statusCode?: number };
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
+  }
+}
+
+export async function endBreak(req: Request, res: Response): Promise<void> {
+  try {
+    const attendance = await attendanceService.endBreak(req.user!.id);
+    res.status(200).json({ success: true, data: attendance });
+  } catch (err) {
+    const e = err as Error & { statusCode?: number };
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
+  }
+}
+
 export async function clockOut(req: Request, res: Response): Promise<void> {
   try {
     const attendance = await attendanceService.clockOut(req.user!.id);
@@ -34,9 +58,15 @@ export async function clockOut(req: Request, res: Response): Promise<void> {
 export async function getToday(req: Request, res: Response): Promise<void> {
   try {
     const attendance = await attendanceService.getToday(req.user!.id);
-    let status: "NOT_CLOCKED_IN" | "CLOCKED_IN" | "CLOCKED_OUT" = "NOT_CLOCKED_IN";
+    let status: "NOT_CLOCKED_IN" | "CLOCKED_IN" | "ON_BREAK" | "CLOCKED_OUT" = "NOT_CLOCKED_IN";
     if (attendance) {
-      status = attendance.clockOut ? "CLOCKED_OUT" : "CLOCKED_IN";
+      if (attendance.clockOut) {
+        status = "CLOCKED_OUT";
+      } else if (attendance.breakStart && !attendance.breakEnd) {
+        status = "ON_BREAK";
+      } else {
+        status = "CLOCKED_IN";
+      }
     }
     res.status(200).json({
       success: true,

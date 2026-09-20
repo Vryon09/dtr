@@ -30,6 +30,16 @@ export const attendanceApi = {
       data: payload,
     }),
 
+  startBreak: () =>
+    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/attendance/break-start', {
+      method: 'POST',
+    }),
+
+  endBreak: () =>
+    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/attendance/break-end', {
+      method: 'POST',
+    }),
+
   clockOut: (payload?: ClockActionPayload) =>
     apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/attendance/clock-out', {
       method: 'POST',

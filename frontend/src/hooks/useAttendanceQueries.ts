@@ -48,6 +48,28 @@ export function useClockInMutation() {
   });
 }
 
+export function useStartBreakMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => attendanceApi.startBreak(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
+    },
+  });
+}
+
+export function useEndBreakMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => attendanceApi.endBreak(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
+    },
+  });
+}
+
 export function useClockOutMutation() {
   const queryClient = useQueryClient();
 
