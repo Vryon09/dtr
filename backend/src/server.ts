@@ -11,10 +11,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const frontendUrl = process.env.FRONTEND_URL?.replace(/\/+$/, "");
+
 // Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: frontendUrl,
     credentials: true,
   }),
 );

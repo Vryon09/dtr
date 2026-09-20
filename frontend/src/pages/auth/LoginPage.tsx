@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, LogIn, AlertCircle } from 'lucide-react';
+import { LogIn, AlertCircle } from 'lucide-react';
+import owlMascot from '../../assets/owl-mascot.png';
 import { useAuth } from '../../hooks/useAuth';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -33,11 +34,12 @@ export const LoginPage: React.FC = () => {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <div
-            className="sidebar-logo-icon"
-            style={{ width: '48px', height: '48px', margin: '0 auto 16px', borderRadius: 'var(--radius-lg)' }}
-          >
-            <Clock size={28} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <img
+              src={owlMascot}
+              alt="Owl Mascot"
+              style={{ height: '56px', width: 'auto', objectFit: 'contain' }}
+            />
           </div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
             Welcome Back
