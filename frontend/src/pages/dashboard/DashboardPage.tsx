@@ -110,22 +110,23 @@ export const DashboardPage: React.FC = () => {
 
           <button
             onClick={handleRefresh}
-            title="Refresh data"
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: '38px',
-              height: '38px',
+              gap: '8px',
+              padding: '10px 16px',
               borderRadius: 'var(--radius-pill)',
               background: 'var(--bg-card)',
               border: '1px solid var(--border-subtle)',
-              color: 'var(--text-muted)',
+              color: 'var(--text-main)',
+              fontWeight: 600,
+              fontSize: '0.875rem',
               boxShadow: 'var(--shadow-sm)',
               cursor: 'pointer',
             }}
           >
             <RefreshCw size={16} className={isLoading ? 'spin' : ''} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
