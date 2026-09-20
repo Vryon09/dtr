@@ -10,12 +10,12 @@ export const settingsApi = {
   updateSettings: (payload: UpdateSettingsPayload) =>
     apiClient<{ success: boolean; data: UserSettings }>('/api/settings', {
       method: 'PATCH',
-      body: JSON.stringify(payload),
+      data: payload,
     }),
 
   updatePassword: (payload: UpdatePasswordPayload) =>
     apiClient<{ success: boolean; message: string }>('/api/settings/password', {
       method: 'PATCH',
-      body: JSON.stringify(payload),
+      data: payload,
     }),
 };

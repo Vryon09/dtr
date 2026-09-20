@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Search, Calendar, RefreshCw, Clock, Layers, Plus } from 'lucide-react';
-import { attendanceApi } from '../../api/attendanceApi';
+import { useAttendanceHistory } from '../../hooks/useAttendanceQueries';
 import { AttendanceTable } from '../../components/attendance/AttendanceTable';
 import { ManualAttendanceModal } from '../../components/attendance/ManualAttendanceModal';
 import { EditAttendanceModal } from '../../components/attendance/EditAttendanceModal';
@@ -11,49 +11,18 @@ import type { AttendanceRecord } from '../../types/attendance';
 import { formatHours } from '../../utils/format';
 
 export const HistoryPage: React.FC = () => {
-  const [history, setHistory] = useState<AttendanceRecord[]>([]);
+  const {
+    data: history = [],
+    isLoading,
+    refetch: fetchHistory,
+  } = useAttendanceHistory();
+
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Modals state
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
-
-  const fetchHistory = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await attendanceApi.getHistory();
-      setHistory(res.data || []);
-    } catch (err) {
-      console.error('Failed to load history', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    attendanceApi
-      .getHistory()
-      .then((res) => {
-        if (isMounted) {
-          setHistory(res.data || []);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load history', err);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const filteredHistory = history.filter((record) => {
     const term = searchTerm.toLowerCase();
@@ -101,7 +70,7 @@ export const HistoryPage: React.FC = () => {
           </button>
 
           <button
-            onClick={fetchHistory}
+            onClick={() => fetchHistory()}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -198,7 +167,6 @@ export const HistoryPage: React.FC = () => {
       <ManualAttendanceModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
-        onSuccess={fetchHistory}
         existingRecords={history}
       />
 
@@ -206,7 +174,6 @@ export const HistoryPage: React.FC = () => {
         record={editingRecord}
         isOpen={Boolean(editingRecord)}
         onClose={() => setEditingRecord(null)}
-        onSuccess={fetchHistory}
         existingRecords={history}
       />
 
@@ -214,7 +181,6 @@ export const HistoryPage: React.FC = () => {
         record={deletingRecord}
         isOpen={Boolean(deletingRecord)}
         onClose={() => setDeletingRecord(null)}
-        onSuccess={fetchHistory}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
-import { attendanceApi } from '../../api/attendanceApi';
+import { useCreateManualAttendanceMutation } from '../../hooks/useAttendanceQueries';
 import {
   toManilaDateString,
   combineDateAndTimeManila,
@@ -12,7 +12,7 @@ import type { AttendanceRecord } from '../../types/attendance';
 interface ManualAttendanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
   existingRecords: AttendanceRecord[];
 }
 
@@ -29,8 +29,9 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
   const [clockOutTime, setClockOutTime] = useState<string>('17:00');
   const [hasClockOut, setHasClockOut] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const createMutation = useCreateManualAttendanceMutation();
 
   // Reset form when opened
   useEffect(() => {
@@ -70,7 +71,6 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
     e.preventDefault();
     if (isDuplicateDate || timeError) return;
 
-    setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
@@ -79,24 +79,23 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
         ? combineDateAndTimeManila(date, clockOutTime)
         : undefined;
 
-      await attendanceApi.createManual({
+      await createMutation.mutateAsync({
         date,
         clockIn: clockInIso,
         clockOut: clockOutIso,
         notes: notes.trim() || undefined,
       });
 
-      onSuccess();
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       const e = err as Error;
       setErrorMessage(e.message || 'Failed to create manual attendance');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const isSubmitDisabled = isDuplicateDate || Boolean(timeError) || isSubmitting || !date || !clockInTime;
+  const isSubmitDisabled =
+    isDuplicateDate || Boolean(timeError) || createMutation.isPending || !date || !clockInTime;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Log Attendance Manually">
@@ -284,7 +283,7 @@ export const ManualAttendanceModal: React.FC<ManualAttendanceModalProps> = ({
               cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
             }}
           >
-            {isSubmitting ? 'Saving...' : 'Save Attendance'}
+            {createMutation.isPending ? 'Saving...' : 'Save Attendance'}
           </button>
         </div>
       </form>

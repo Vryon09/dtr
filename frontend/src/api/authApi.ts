@@ -5,13 +5,13 @@ export const authApi = {
   register: (payload: RegisterPayload) =>
     apiClient<AuthResponse>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      data: payload,
     }),
 
   login: (payload: LoginPayload) =>
     apiClient<AuthResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      data: payload,
     }),
 
   logout: () =>

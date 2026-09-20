@@ -1,3 +1,4 @@
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import type { ApiErrorResponse } from '../types/api';
 
 export class ApiError extends Error {
@@ -19,51 +20,48 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions extends RequestInit {
-  params?: Record<string, string | number | boolean | undefined>;
-}
+export const axiosInstance = axios.create({
+  baseURL: '/',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000,
+});
 
-export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { params, headers, ...restOptions } = options;
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<ApiErrorResponse | { message?: string }>) => {
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data;
+      const errorPayload = (data as ApiErrorResponse)?.error;
+      const directMessage = (data as { message?: string })?.message;
+      const message =
+        directMessage || errorPayload?.message || error.response.statusText || 'Request failed';
+      const code = errorPayload?.code || 'REQUEST_FAILED';
+      const details = errorPayload?.details;
 
-  let url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-
-  if (params) {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, val]) => {
-      if (val !== undefined) {
-        searchParams.append(key, String(val));
-      }
-    });
-    const queryString = searchParams.toString();
-    if (queryString) {
-      url += (url.includes('?') ? '&' : '?') + queryString;
+      return Promise.reject(new ApiError(message, code, status, details));
     }
-  }
 
-  const response = await fetch(url, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-    ...restOptions,
+    if (error.request) {
+      return Promise.reject(
+        new ApiError('Network error. Please check your connection.', 'NETWORK_ERROR', 0)
+      );
+    }
+
+    return Promise.reject(new ApiError(error.message, 'REQUEST_SETUP_ERROR', 500));
+  }
+);
+
+export async function apiClient<T>(
+  endpoint: string,
+  options: AxiosRequestConfig & { params?: Record<string, string | number | boolean | undefined> } = {}
+): Promise<T> {
+  const response = await axiosInstance.request<T>({
+    url: endpoint,
+    ...options,
   });
-
-  let data: unknown = null;
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    data = await response.json();
-  }
-
-  if (!response.ok) {
-    const errorPayload = (data as ApiErrorResponse | null)?.error;
-    const directMessage = (data as { message?: string } | null)?.message;
-    const message = directMessage || errorPayload?.message || response.statusText || 'Request failed';
-    const code = errorPayload?.code || 'REQUEST_FAILED';
-    const details = errorPayload?.details;
-    throw new ApiError(message, code, response.status, details);
-  }
-
-  return data as T;
+  return response.data;
 }

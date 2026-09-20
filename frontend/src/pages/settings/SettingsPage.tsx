@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { User, Lock, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User as UserIcon, Lock, Save, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { settingsApi } from '../../api/settingsApi';
+import { useUpdateSettingsMutation, useUpdatePasswordMutation } from '../../hooks/useSettingsQueries';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -13,7 +13,6 @@ export const SettingsPage: React.FC = () => {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [requiredHours, setRequiredHours] = useState<number>(user?.requiredHours || 300);
-  const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -21,18 +20,27 @@ export const SettingsPage: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const updateSettingsMutation = useUpdateSettingsMutation();
+  const updatePasswordMutation = useUpdatePasswordMutation();
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setEmail(user.email);
+      setRequiredHours(user.requiredHours);
+    }
+  }, [user]);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileError(null);
     setProfileSuccess(null);
-    setProfileLoading(true);
 
     try {
-      await settingsApi.updateSettings({
+      await updateSettingsMutation.mutateAsync({
         name: name.trim(),
         email: email.trim(),
         requiredHours: Number(requiredHours),
@@ -41,8 +49,6 @@ export const SettingsPage: React.FC = () => {
       setProfileSuccess('Profile and OJT target hours updated successfully!');
     } catch (err: unknown) {
       setProfileError(err instanceof Error ? err.message : 'Failed to update profile settings');
-    } finally {
-      setProfileLoading(false);
     }
   };
 
@@ -61,9 +67,8 @@ export const SettingsPage: React.FC = () => {
       return;
     }
 
-    setPasswordLoading(true);
     try {
-      await settingsApi.updatePassword({
+      await updatePasswordMutation.mutateAsync({
         currentPassword,
         newPassword,
       });
@@ -73,8 +78,6 @@ export const SettingsPage: React.FC = () => {
       setConfirmPassword('');
     } catch (err: unknown) {
       setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
-    } finally {
-      setPasswordLoading(false);
     }
   };
 
@@ -95,7 +98,7 @@ export const SettingsPage: React.FC = () => {
         <div className="card-header">
           <div>
             <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <User size={20} color="var(--primary)" />
+              <UserIcon size={20} color="var(--primary)" />
               Profile & Target Hours
             </h3>
             <p className="card-subtitle">Update your personal details and total required OJT hours</p>
@@ -148,7 +151,7 @@ export const SettingsPage: React.FC = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              disabled={profileLoading}
+              disabled={updateSettingsMutation.isPending}
             />
 
             <Input
@@ -157,7 +160,7 @@ export const SettingsPage: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              disabled={profileLoading}
+              disabled={updateSettingsMutation.isPending}
             />
           </div>
 
@@ -170,14 +173,14 @@ export const SettingsPage: React.FC = () => {
             onChange={(e) => setRequiredHours(Number(e.target.value))}
             helperText="Changing target hours recalculates remaining hours and progress metrics"
             required
-            disabled={profileLoading}
+            disabled={updateSettingsMutation.isPending}
           />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
             <Button
               type="submit"
               variant="primary"
-              isLoading={profileLoading}
+              isLoading={updateSettingsMutation.isPending}
               icon={<Save size={18} />}
             >
               Save Profile Changes
@@ -244,7 +247,7 @@ export const SettingsPage: React.FC = () => {
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
-            disabled={passwordLoading}
+            disabled={updatePasswordMutation.isPending}
           />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
@@ -255,7 +258,7 @@ export const SettingsPage: React.FC = () => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
-              disabled={passwordLoading}
+              disabled={updatePasswordMutation.isPending}
             />
 
             <Input
@@ -265,7 +268,7 @@ export const SettingsPage: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              disabled={passwordLoading}
+              disabled={updatePasswordMutation.isPending}
             />
           </div>
 
@@ -273,7 +276,7 @@ export const SettingsPage: React.FC = () => {
             <Button
               type="submit"
               variant="outline"
-              isLoading={passwordLoading}
+              isLoading={updatePasswordMutation.isPending}
               icon={<Lock size={18} />}
             >
               Update Password

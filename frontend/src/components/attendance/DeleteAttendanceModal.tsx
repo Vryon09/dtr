@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, AlertTriangle } from 'lucide-react';
 import { Modal } from '../common/Modal';
-import { attendanceApi } from '../../api/attendanceApi';
+import { useDeleteAttendanceMutation } from '../../hooks/useAttendanceQueries';
 import { formatWorkingDate, formatTime } from '../../utils/date';
 import { formatHours } from '../../utils/format';
 import type { AttendanceRecord } from '../../types/attendance';
@@ -10,7 +10,7 @@ interface DeleteAttendanceModalProps {
   record: AttendanceRecord | null;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 export const DeleteAttendanceModal: React.FC<DeleteAttendanceModalProps> = ({
@@ -19,23 +19,20 @@ export const DeleteAttendanceModal: React.FC<DeleteAttendanceModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const deleteMutation = useDeleteAttendanceMutation();
 
   if (!record) return null;
 
   const handleDelete = async () => {
-    setIsDeleting(true);
     setErrorMessage(null);
     try {
-      await attendanceApi.deleteAttendance(record.id);
-      onSuccess();
+      await deleteMutation.mutateAsync(record.id);
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       const e = err as Error;
       setErrorMessage(e.message || 'Failed to delete attendance record');
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -134,7 +131,7 @@ export const DeleteAttendanceModal: React.FC<DeleteAttendanceModalProps> = ({
           <button
             type="button"
             onClick={handleDelete}
-            disabled={isDeleting}
+            disabled={deleteMutation.isPending}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -146,12 +143,12 @@ export const DeleteAttendanceModal: React.FC<DeleteAttendanceModalProps> = ({
               border: 'none',
               fontWeight: 600,
               fontSize: '0.875rem',
-              cursor: isDeleting ? 'not-allowed' : 'pointer',
-              opacity: isDeleting ? 0.7 : 1,
+              cursor: deleteMutation.isPending ? 'not-allowed' : 'pointer',
+              opacity: deleteMutation.isPending ? 0.7 : 1,
             }}
           >
             <Trash2 size={16} />
-            {isDeleting ? 'Deleting...' : 'Delete Record'}
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete Record'}
           </button>
         </div>
       </div>

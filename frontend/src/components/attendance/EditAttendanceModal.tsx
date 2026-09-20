@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
-import { attendanceApi } from '../../api/attendanceApi';
+import { useUpdateAttendanceMutation } from '../../hooks/useAttendanceQueries';
 import {
   toManilaDateString,
   getManilaTimeString,
@@ -14,7 +14,7 @@ interface EditAttendanceModalProps {
   record: AttendanceRecord | null;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
   existingRecords: AttendanceRecord[];
 }
 
@@ -30,8 +30,9 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
   const [clockOutTime, setClockOutTime] = useState<string>('');
   const [hasClockOut, setHasClockOut] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const updateMutation = useUpdateAttendanceMutation();
 
   useEffect(() => {
     if (record && isOpen) {
@@ -71,7 +72,6 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
     e.preventDefault();
     if (isDuplicateDate || timeError) return;
 
-    setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
@@ -80,24 +80,26 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
         ? combineDateAndTimeManila(date, clockOutTime)
         : null;
 
-      await attendanceApi.updateAttendance(record.id, {
-        date,
-        clockIn: clockInIso,
-        clockOut: clockOutIso,
-        notes: notes.trim() || null,
+      await updateMutation.mutateAsync({
+        id: record.id,
+        payload: {
+          date,
+          clockIn: clockInIso,
+          clockOut: clockOutIso,
+          notes: notes.trim() || null,
+        },
       });
 
-      onSuccess();
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       const e = err as Error;
       setErrorMessage(e.message || 'Failed to update attendance');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const isSubmitDisabled = isDuplicateDate || Boolean(timeError) || isSubmitting || !date || !clockInTime;
+  const isSubmitDisabled =
+    isDuplicateDate || Boolean(timeError) || updateMutation.isPending || !date || !clockInTime;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Attendance Record">
@@ -281,7 +283,7 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
               cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
             }}
           >
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+            {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>

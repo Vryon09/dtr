@@ -1,8 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, ArrowRight, RefreshCw, Plus } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { attendanceApi } from '../../api/attendanceApi';
+import {
+  useAttendanceToday,
+  useAttendanceSummary,
+  useAttendanceHistory,
+  useClockInMutation,
+  useClockOutMutation,
+} from '../../hooks/useAttendanceQueries';
 import { MetricsGrid } from '../../components/attendance/MetricsGrid';
 import { ClockCard } from '../../components/attendance/ClockCard';
 import { WeeklyBarChart } from '../../components/attendance/WeeklyBarChart';
@@ -13,89 +19,52 @@ import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttenda
 import { RightRail } from '../../components/layout/RightRail';
 import { Card } from '../../components/common/Card';
 import { getTodayFormatted } from '../../utils/date';
-import type {
-  TodayAttendanceResponse,
-  AttendanceSummaryResponse,
-  AttendanceRecord,
-} from '../../types/attendance';
+import type { AttendanceRecord } from '../../types/attendance';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
-  const [todayData, setTodayData] = useState<TodayAttendanceResponse | null>(null);
-  const [summaryData, setSummaryData] = useState<AttendanceSummaryResponse | null>(null);
-  const [history, setHistory] = useState<AttendanceRecord[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isClocking, setIsClocking] = useState<boolean>(false);
+  const {
+    data: todayData = null,
+    isLoading: isTodayLoading,
+    refetch: refetchToday,
+  } = useAttendanceToday();
+
+  const {
+    data: summaryData = null,
+    isLoading: isSummaryLoading,
+    refetch: refetchSummary,
+  } = useAttendanceSummary();
+
+  const {
+    data: history = [],
+    isLoading: isHistoryLoading,
+    refetch: refetchHistory,
+  } = useAttendanceHistory();
+
+  const clockInMutation = useClockInMutation();
+  const clockOutMutation = useClockOutMutation();
+
+  const isLoading = isTodayLoading || isSummaryLoading || isHistoryLoading;
+  const isClocking = clockInMutation.isPending || clockOutMutation.isPending;
 
   // Modals state
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      const [todayRes, summaryRes, historyRes] = await Promise.all([
-        attendanceApi.getToday(),
-        attendanceApi.getSummary(),
-        attendanceApi.getHistory(),
-      ]);
-      setTodayData(todayRes.data);
-      setSummaryData(summaryRes.data);
-      setHistory(historyRes.data || []);
-    } catch (err) {
-      console.error('Failed to load dashboard data', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    Promise.all([
-      attendanceApi.getToday(),
-      attendanceApi.getSummary(),
-      attendanceApi.getHistory(),
-    ])
-      .then(([todayRes, summaryRes, historyRes]) => {
-        if (isMounted) {
-          setTodayData(todayRes.data);
-          setSummaryData(summaryRes.data);
-          setHistory(historyRes.data || []);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load initial dashboard data', err);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const handleRefresh = () => {
+    refetchToday();
+    refetchSummary();
+    refetchHistory();
+  };
 
   const handleClockIn = async (notes?: string) => {
-    setIsClocking(true);
-    try {
-      await attendanceApi.clockIn({ notes });
-      await fetchDashboardData();
-    } finally {
-      setIsClocking(false);
-    }
+    await clockInMutation.mutateAsync({ notes });
   };
 
   const handleClockOut = async (notes?: string) => {
-    setIsClocking(true);
-    try {
-      await attendanceApi.clockOut({ notes });
-      await fetchDashboardData();
-    } finally {
-      setIsClocking(false);
-    }
+    await clockOutMutation.mutateAsync({ notes });
   };
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Intern';
@@ -140,10 +109,7 @@ export const DashboardPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => {
-              setIsLoading(true);
-              fetchDashboardData();
-            }}
+            onClick={handleRefresh}
             title="Refresh data"
             style={{
               display: 'flex',
@@ -223,7 +189,6 @@ export const DashboardPage: React.FC = () => {
       <ManualAttendanceModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
-        onSuccess={fetchDashboardData}
         existingRecords={history}
       />
 
@@ -231,7 +196,6 @@ export const DashboardPage: React.FC = () => {
         record={editingRecord}
         isOpen={Boolean(editingRecord)}
         onClose={() => setEditingRecord(null)}
-        onSuccess={fetchDashboardData}
         existingRecords={history}
       />
 
@@ -239,7 +203,6 @@ export const DashboardPage: React.FC = () => {
         record={deletingRecord}
         isOpen={Boolean(deletingRecord)}
         onClose={() => setDeletingRecord(null)}
-        onSuccess={fetchDashboardData}
       />
     </div>
   );

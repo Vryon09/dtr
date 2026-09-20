@@ -27,25 +27,25 @@ export const attendanceApi = {
   clockIn: (payload?: ClockActionPayload) =>
     apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/api/attendance/clock-in', {
       method: 'POST',
-      body: payload ? JSON.stringify(payload) : undefined,
+      data: payload,
     }),
 
   clockOut: (payload?: ClockActionPayload) =>
     apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/api/attendance/clock-out', {
       method: 'POST',
-      body: payload ? JSON.stringify(payload) : undefined,
+      data: payload,
     }),
 
   createManual: (payload: CreateManualAttendancePayload) =>
     apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/api/attendance/manual', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      data: payload,
     }),
 
   updateAttendance: (id: string, payload: UpdateAttendancePayload) =>
     apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>(`/api/attendance/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(payload),
+      data: payload,
     }),
 
   deleteAttendance: (id: string) =>
