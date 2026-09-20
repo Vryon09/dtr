@@ -1,14 +1,14 @@
-import { Request, Response } from "express";
+import { CookieOptions, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import * as authService from "../services/authService.js";
 
 const COOKIE_NAME = "token";
 
-function cookieOptions(maxAge?: number) {
+function cookieOptions(maxAge?: number): CookieOptions {
   return {
     httpOnly: true,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
     ...(maxAge !== undefined ? { maxAge } : {}),
   };
 }
