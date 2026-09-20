@@ -10,46 +10,46 @@ import type {
 
 export const attendanceApi = {
   getToday: () =>
-    apiClient<{ success: boolean; data: TodayAttendanceResponse }>('/api/attendance/today', {
+    apiClient<{ success: boolean; data: TodayAttendanceResponse }>('/attendance/today', {
       method: 'GET',
     }),
 
   getSummary: () =>
-    apiClient<{ success: boolean; data: AttendanceSummaryResponse }>('/api/attendance/summary', {
+    apiClient<{ success: boolean; data: AttendanceSummaryResponse }>('/attendance/summary', {
       method: 'GET',
     }),
 
   getHistory: () =>
-    apiClient<{ success: boolean; data: AttendanceRecord[] }>('/api/attendance', {
+    apiClient<{ success: boolean; data: AttendanceRecord[] }>('/attendance', {
       method: 'GET',
     }),
 
   clockIn: (payload?: ClockActionPayload) =>
-    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/api/attendance/clock-in', {
+    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/attendance/clock-in', {
       method: 'POST',
       data: payload,
     }),
 
   clockOut: (payload?: ClockActionPayload) =>
-    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/api/attendance/clock-out', {
+    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/attendance/clock-out', {
       method: 'POST',
       data: payload,
     }),
 
   createManual: (payload: CreateManualAttendancePayload) =>
-    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/api/attendance/manual', {
+    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>('/attendance/manual', {
       method: 'POST',
       data: payload,
     }),
 
   updateAttendance: (id: string, payload: UpdateAttendancePayload) =>
-    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>(`/api/attendance/${id}`, {
+    apiClient<{ success: boolean; data: AttendanceRecord; message?: string }>(`/attendance/${id}`, {
       method: 'PUT',
       data: payload,
     }),
 
   deleteAttendance: (id: string) =>
-    apiClient<{ success: boolean; message?: string }>(`/api/attendance/${id}`, {
+    apiClient<{ success: boolean; message?: string }>(`/attendance/${id}`, {
       method: 'DELETE',
     }),
 };

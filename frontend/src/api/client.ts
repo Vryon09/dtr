@@ -1,5 +1,5 @@
-import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
-import type { ApiErrorResponse } from '../types/api';
+import axios, { AxiosError, type AxiosRequestConfig } from "axios";
+import type { ApiErrorResponse } from "../types/api";
 
 export class ApiError extends Error {
   code: string;
@@ -8,12 +8,12 @@ export class ApiError extends Error {
 
   constructor(
     message: string,
-    code: string = 'UNKNOWN_ERROR',
+    code: string = "UNKNOWN_ERROR",
     status: number = 500,
-    details?: Array<{ field?: string; message: string }>
+    details?: Array<{ field?: string; message: string }>,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.code = code;
     this.status = status;
     this.details = details;
@@ -21,10 +21,10 @@ export class ApiError extends Error {
 }
 
 export const axiosInstance = axios.create({
-  baseURL: '/',
+  baseURL: `${import.meta.env.VITE_API_URL}/api`,
   withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 30000,
 });
@@ -38,8 +38,11 @@ axiosInstance.interceptors.response.use(
       const errorPayload = (data as ApiErrorResponse)?.error;
       const directMessage = (data as { message?: string })?.message;
       const message =
-        directMessage || errorPayload?.message || error.response.statusText || 'Request failed';
-      const code = errorPayload?.code || 'REQUEST_FAILED';
+        directMessage ||
+        errorPayload?.message ||
+        error.response.statusText ||
+        "Request failed";
+      const code = errorPayload?.code || "REQUEST_FAILED";
       const details = errorPayload?.details;
 
       return Promise.reject(new ApiError(message, code, status, details));
@@ -47,17 +50,25 @@ axiosInstance.interceptors.response.use(
 
     if (error.request) {
       return Promise.reject(
-        new ApiError('Network error. Please check your connection.', 'NETWORK_ERROR', 0)
+        new ApiError(
+          "Network error. Please check your connection.",
+          "NETWORK_ERROR",
+          0,
+        ),
       );
     }
 
-    return Promise.reject(new ApiError(error.message, 'REQUEST_SETUP_ERROR', 500));
-  }
+    return Promise.reject(
+      new ApiError(error.message, "REQUEST_SETUP_ERROR", 500),
+    );
+  },
 );
 
 export async function apiClient<T>(
   endpoint: string,
-  options: AxiosRequestConfig & { params?: Record<string, string | number | boolean | undefined> } = {}
+  options: AxiosRequestConfig & {
+    params?: Record<string, string | number | boolean | undefined>;
+  } = {},
 ): Promise<T> {
   const response = await axiosInstance.request<T>({
     url: endpoint,
