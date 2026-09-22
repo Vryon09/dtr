@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Calendar, RefreshCw, Clock, Layers, Plus } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, Calendar, RefreshCw, Clock, Layers, Plus, CalendarDays, List } from 'lucide-react';
 import { useAttendanceHistory } from '../../hooks/useAttendanceQueries';
 import { AttendanceTable } from '../../components/attendance/AttendanceTable';
+import { WeeklyHistoryList } from '../../components/attendance/WeeklyHistoryList';
 import { ManualAttendanceModal } from '../../components/attendance/ManualAttendanceModal';
 import { EditAttendanceModal } from '../../components/attendance/EditAttendanceModal';
 import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttendanceModal';
@@ -11,6 +13,9 @@ import type { AttendanceRecord } from '../../types/attendance';
 import { formatHours } from '../../utils/format';
 
 export const HistoryPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') === 'weekly' ? 'weekly' : 'daily';
+
   const {
     data: history = [],
     isLoading,
@@ -23,6 +28,10 @@ export const HistoryPage: React.FC = () => {
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
+
+  const handleTabChange = (tab: 'daily' | 'weekly') => {
+    setSearchParams(tab === 'weekly' ? { tab: 'weekly' } : {});
+  };
 
   const filteredHistory = history.filter((record) => {
     const term = searchTerm.toLowerCase();
@@ -40,9 +49,9 @@ export const HistoryPage: React.FC = () => {
       {/* Header */}
       <div className="top-header">
         <div>
-          <h1 className="greeting-title">Attendance Logs</h1>
+          <h1 className="greeting-title">Attendance Logs & Weekly Summary</h1>
           <p className="greeting-subtitle">
-            Complete record of your daily working hours, times, and session notes
+            View your daily shifts and explore total rendered hours week by week
           </p>
         </div>
 
@@ -117,7 +126,7 @@ export const HistoryPage: React.FC = () => {
         />
       </div>
 
-      {/* Filter and Table Card */}
+      {/* View Switcher & Filters */}
       <Card>
         <div
           style={{
@@ -129,6 +138,64 @@ export const HistoryPage: React.FC = () => {
             marginBottom: '20px',
           }}
         >
+          {/* Segmented Tab Controls */}
+          <div
+            style={{
+              display: 'inline-flex',
+              background: 'var(--bg-subtle)',
+              padding: '4px',
+              borderRadius: 'var(--radius-pill)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => handleTabChange('daily')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-pill)',
+                border: 'none',
+                background: activeTab === 'daily' ? 'var(--bg-card)' : 'transparent',
+                color: activeTab === 'daily' ? 'var(--primary)' : 'var(--text-muted)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                boxShadow: activeTab === 'daily' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <List size={16} />
+              <span>Daily Shifts ({history.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('weekly')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-pill)',
+                border: 'none',
+                background: activeTab === 'weekly' ? 'var(--bg-card)' : 'transparent',
+                color: activeTab === 'weekly' ? 'var(--primary)' : 'var(--text-muted)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                boxShadow: activeTab === 'weekly' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <CalendarDays size={16} />
+              <span>Weekly Summary</span>
+            </button>
+          </div>
+
+          {/* Search box */}
           <div style={{ position: 'relative', width: '100%', maxWidth: '340px' }}>
             <Search
               size={18}
@@ -139,28 +206,34 @@ export const HistoryPage: React.FC = () => {
               type="text"
               className="form-input"
               style={{ paddingLeft: '38px' }}
-              placeholder="Search by date (YYYY-MM-DD) or notes..."
+              placeholder={activeTab === 'weekly' ? 'Search by week date or notes...' : 'Search by date (YYYY-MM-DD) or notes...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-
-          <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-            Showing {filteredHistory.length} of {history.length} records
-          </div>
         </div>
 
-        <AttendanceTable
-          records={filteredHistory}
-          emptyTitle={searchTerm ? 'No matching logs' : 'No attendance records yet'}
-          emptyDescription={
-            searchTerm
-              ? `No logs match "${searchTerm}". Try another search term.`
-              : 'Search by date or description, or log attendance to start.'
-          }
-          onEdit={(record) => setEditingRecord(record)}
-          onDelete={(record) => setDeletingRecord(record)}
-        />
+        {/* Tab Content */}
+        {activeTab === 'daily' ? (
+          <AttendanceTable
+            records={filteredHistory}
+            emptyTitle={searchTerm ? 'No matching logs' : 'No attendance records yet'}
+            emptyDescription={
+              searchTerm
+                ? `No logs match "${searchTerm}". Try another search term.`
+                : 'Search by date or description, or log attendance to start.'
+            }
+            onEdit={(record) => setEditingRecord(record)}
+            onDelete={(record) => setDeletingRecord(record)}
+          />
+        ) : (
+          <WeeklyHistoryList
+            records={filteredHistory}
+            searchTerm={searchTerm}
+            onEdit={(record) => setEditingRecord(record)}
+            onDelete={(record) => setDeletingRecord(record)}
+          />
+        )}
       </Card>
 
       {/* Modals */}
@@ -185,3 +258,4 @@ export const HistoryPage: React.FC = () => {
     </div>
   );
 };
+

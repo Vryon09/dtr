@@ -48,3 +48,26 @@ export interface UpdateAttendancePayload {
   breakEnd?: string | null;
   notes?: string | null;
 }
+
+export interface WeeklyDayStat {
+  dayName: string; // e.g. "Mon", "Tue"
+  dateString: string; // "YYYY-MM-DD"
+  formattedDate: string; // "Mar 16"
+  hours: number;
+  record?: AttendanceRecord;
+}
+
+export interface WeeklySummary {
+  weekKey: string; // "2026-W12"
+  weekNumber: number;
+  year: number;
+  startDate: string; // "YYYY-MM-DD"
+  endDate: string; // "YYYY-MM-DD"
+  label: string; // "Mar 16 – Mar 22, 2026"
+  totalHours: number;
+  shiftCount: number;
+  records: AttendanceRecord[];
+  days: WeeklyDayStat[];
+  isCurrentWeek: boolean;
+}
+
