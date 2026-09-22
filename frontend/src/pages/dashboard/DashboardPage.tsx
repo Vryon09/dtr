@@ -22,6 +22,8 @@ import { EditAttendanceModal } from '../../components/attendance/EditAttendanceM
 import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttendanceModal';
 import { RightRail } from '../../components/layout/RightRail';
 import { Card } from '../../components/common/Card';
+import { EmptyState } from '../../components/common/EmptyState';
+import owlMascotFinding from '../../assets/owl-mascot-finding.png';
 import { getTodayFormatted } from '../../utils/date';
 import type { AttendanceRecord } from '../../types/attendance';
 
@@ -95,6 +97,7 @@ export const DashboardPage: React.FC = () => {
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Intern';
   const hasVisibleMain = visibility.clock || visibility.chart || visibility.recent;
+  const allElementsHidden = !visibility.metrics && !visibility.rail && !hasVisibleMain;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -253,30 +256,61 @@ export const DashboardPage: React.FC = () => {
             </Card>
           )}
 
-          {/* Fallback when all main widgets hidden */}
+          {/* Fallback when all main widgets or all elements are hidden */}
           {!hasVisibleMain && (
             <Card>
-              <div style={{ textAlign: 'center', padding: '36px 16px' }}>
-                <p style={{ fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  All main dashboard widgets are hidden.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsCustomizeModalOpen(true)}
-                  style={{
-                    padding: '8px 18px',
-                    borderRadius: 'var(--radius-pill)',
-                    background: 'var(--primary)',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Manage Elements
-                </button>
-              </div>
+              <EmptyState
+                imageSrc={owlMascotFinding}
+                imageAlt={allElementsHidden ? 'All dashboard elements hidden' : 'All main widgets hidden'}
+                title={
+                  allElementsHidden
+                    ? 'All dashboard elements are hidden'
+                    : 'All main dashboard widgets are hidden'
+                }
+                description={
+                  allElementsHidden
+                    ? 'Every element on your dashboard is currently hidden. Customize your layout to restore your workspace.'
+                    : 'Your main workspace widgets (Clock, Chart, and Recent Activity) are hidden. Adjust your layout to bring them back.'
+                }
+                action={
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomizeModalOpen(true)}
+                      style={{
+                        padding: '8px 18px',
+                        borderRadius: 'var(--radius-pill)',
+                        background: 'var(--primary)',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Manage Elements
+                    </button>
+                    {allElementsHidden && (
+                      <button
+                        type="button"
+                        onClick={resetVisibility}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 'var(--radius-pill)',
+                          background: 'var(--bg-card)',
+                          color: 'var(--text-main)',
+                          border: '1px solid var(--border-subtle)',
+                          fontWeight: 600,
+                          fontSize: '0.875rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Reset Layout
+                      </button>
+                    )}
+                  </div>
+                }
+              />
             </Card>
           )}
         </div>
