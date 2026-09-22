@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ArrowRight, RefreshCw, Plus } from 'lucide-react';
+import { Calendar, ArrowRight, RefreshCw, Plus, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   useAttendanceToday,
@@ -11,6 +11,8 @@ import {
   useEndBreakMutation,
   useClockOutMutation,
 } from '../../hooks/useAttendanceQueries';
+import { useDashboardLayout } from '../../hooks/useDashboardLayout';
+import { CustomizeDashboardModal } from '../../components/dashboard/CustomizeDashboardModal';
 import { MetricsGrid } from '../../components/attendance/MetricsGrid';
 import { ClockCard } from '../../components/attendance/ClockCard';
 import { WeeklyBarChart } from '../../components/attendance/WeeklyBarChart';
@@ -25,6 +27,13 @@ import type { AttendanceRecord } from '../../types/attendance';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+
+  const {
+    visibility,
+    toggleVisibility,
+    resetVisibility,
+    hiddenCount,
+  } = useDashboardLayout(user?.id);
 
   const {
     data: todayData = null,
@@ -58,6 +67,7 @@ export const DashboardPage: React.FC = () => {
 
   // Modals state
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
+  const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
 
@@ -84,6 +94,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Intern';
+  const hasVisibleMain = visibility.clock || visibility.chart || visibility.recent;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -124,6 +135,47 @@ export const DashboardPage: React.FC = () => {
             <span>Log Attendance</span>
           </button>
 
+          {/* Customize Elements Modal Trigger */}
+          <button
+            onClick={() => setIsCustomizeModalOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-main)',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              boxShadow: 'var(--shadow-sm)',
+              cursor: 'pointer',
+              transition: 'var(--transition)',
+            }}
+            title="Show or hide dashboard elements"
+          >
+            <SlidersHorizontal size={16} />
+            <span>Customize</span>
+            {hiddenCount > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--primary)',
+                  color: '#ffffff',
+                  borderRadius: '10px',
+                  fontSize: '0.6875rem',
+                  padding: '1px 6px',
+                  fontWeight: 700,
+                }}
+              >
+                {hiddenCount} hidden
+              </span>
+            )}
+          </button>
+
           <button
             onClick={handleRefresh}
             style={{
@@ -148,61 +200,103 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Metrics Counter Grid */}
-      <MetricsGrid summary={summaryData} isLoading={isLoading} />
+      {visibility.metrics && <MetricsGrid summary={summaryData} isLoading={isLoading} />}
 
       {/* Main Grid Content */}
-      <div className="content-columns">
+      <div className={`content-columns ${!visibility.rail ? 'no-rail' : ''}`}>
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
           {/* Clock In / Out Card */}
-          <ClockCard
-            todayData={todayData}
-            onClockIn={handleClockIn}
-            onStartBreak={handleStartBreak}
-            onEndBreak={handleEndBreak}
-            onClockOut={handleClockOut}
-            isLoading={isClocking}
-          />
+          {visibility.clock && (
+            <ClockCard
+              todayData={todayData}
+              onClockIn={handleClockIn}
+              onStartBreak={handleStartBreak}
+              onEndBreak={handleEndBreak}
+              onClockOut={handleClockOut}
+              isLoading={isClocking}
+            />
+          )}
 
           {/* Weekly Hours Breakdown */}
-          <WeeklyBarChart history={history} />
+          {visibility.chart && <WeeklyBarChart history={history} />}
 
           {/* Recent Attendance Records */}
-          <Card>
-            <div className="card-header">
-              <div>
-                <h3 className="card-title">Recent Activity</h3>
-                <p className="card-subtitle">Your latest logged working shifts</p>
+          {visibility.recent && (
+            <Card>
+              <div className="card-header">
+                <div>
+                  <h3 className="card-title">Recent Activity</h3>
+                  <p className="card-subtitle">Your latest logged working shifts</p>
+                </div>
+                <Link
+                  to="/history"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  View All <ArrowRight size={16} />
+                </Link>
               </div>
-              <Link
-                to="/history"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                }}
-              >
-                View All <ArrowRight size={16} />
-              </Link>
-            </div>
 
-            <AttendanceTable
-              records={history}
-              limit={5}
-              isCompact
-              onEdit={(record) => setEditingRecord(record)}
-              onDelete={(record) => setDeletingRecord(record)}
-            />
-          </Card>
+              <AttendanceTable
+                records={history}
+                limit={5}
+                isCompact
+                onEdit={(record) => setEditingRecord(record)}
+                onDelete={(record) => setDeletingRecord(record)}
+              />
+            </Card>
+          )}
+
+          {/* Fallback when all main widgets hidden */}
+          {!hasVisibleMain && (
+            <Card>
+              <div style={{ textAlign: 'center', padding: '36px 16px' }}>
+                <p style={{ fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  All main dashboard widgets are hidden.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomizeModalOpen(true)}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'var(--primary)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Manage Elements
+                </button>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Right Column: Profile & Status */}
-        <div>
-          <RightRail todayData={todayData} summaryData={summaryData} />
-        </div>
+        {visibility.rail && (
+          <div>
+            <RightRail todayData={todayData} summaryData={summaryData} />
+          </div>
+        )}
       </div>
+
+      {/* Customize Elements Modal */}
+      <CustomizeDashboardModal
+        isOpen={isCustomizeModalOpen}
+        onClose={() => setIsCustomizeModalOpen(false)}
+        visibility={visibility}
+        onToggleVisibility={toggleVisibility}
+        onResetVisibility={resetVisibility}
+      />
 
       {/* Modals */}
       <ManualAttendanceModal
