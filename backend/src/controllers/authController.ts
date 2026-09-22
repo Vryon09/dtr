@@ -7,7 +7,7 @@ const COOKIE_NAME = "token";
 function cookieOptions(maxAge?: number): CookieOptions {
   return {
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     ...(maxAge !== undefined ? { maxAge } : {}),
   };
