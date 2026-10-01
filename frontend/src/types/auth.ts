@@ -19,8 +19,23 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  newPassword: string;
+}
+
 export interface AuthResponse {
   success: boolean;
   data: User;
   message?: string;
+}
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  message?: string;
+  data?: T;
 }

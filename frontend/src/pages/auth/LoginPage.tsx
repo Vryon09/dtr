@@ -89,12 +89,26 @@ export const LoginPage: React.FC = () => {
             disabled={isLoading}
           />
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-8px', marginBottom: '16px' }}>
+            <Link
+              to="/forgot-password"
+              style={{
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: 'var(--primary-600, #4f46e5)',
+                textDecoration: 'none',
+              }}
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
           <Button
             type="submit"
             variant="primary"
             isLoading={isLoading}
             icon={<LogIn size={18} />}
-            style={{ width: '100%', marginTop: '8px', padding: '12px' }}
+            style={{ width: '100%', padding: '12px' }}
           >
             Sign In
           </Button>

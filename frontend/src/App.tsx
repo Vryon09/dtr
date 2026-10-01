@@ -5,6 +5,8 @@ import { useAuth } from './hooks/useAuth';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { HistoryPage } from './pages/history/HistoryPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
@@ -58,6 +60,22 @@ export default function App() {
             element={
               <PublicRoute>
                 <RegisterPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <ForgotPasswordPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <PublicRoute>
+                <ResetPasswordPage />
               </PublicRoute>
             }
           />

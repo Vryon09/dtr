@@ -111,3 +111,40 @@ export async function me(req: Request, res: Response): Promise<void> {
       .json({ success: false, message: e.message });
   }
 }
+
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  const { email } = req.body as { email: string };
+
+  try {
+    await authService.requestPasswordReset(email.toLowerCase().trim());
+    res.status(200).json({
+      success: true,
+      message: "If an account exists with that email, password reset instructions have been sent.",
+    });
+  } catch (err) {
+    const e = err as Error & { statusCode?: number };
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
+  }
+}
+
+export async function resetPassword(req: Request, res: Response): Promise<void> {
+  const { token, newPassword } = req.body as {
+    token: string;
+    newPassword: string;
+  };
+
+  try {
+    await authService.resetPassword(token, newPassword);
+    res.status(200).json({
+      success: true,
+      message: "Password has been successfully reset. You can now log in.",
+    });
+  } catch (err) {
+    const e = err as Error & { statusCode?: number };
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
+  }
+}

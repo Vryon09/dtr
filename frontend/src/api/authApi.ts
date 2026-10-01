@@ -1,5 +1,13 @@
 import { apiClient } from './client';
-import type { AuthResponse, LoginPayload, RegisterPayload, User } from '../types/auth';
+import type {
+  AuthResponse,
+  LoginPayload,
+  RegisterPayload,
+  ForgotPasswordPayload,
+  ResetPasswordPayload,
+  ApiResponse,
+  User,
+} from '../types/auth';
 
 export const authApi = {
   register: (payload: RegisterPayload) =>
@@ -22,5 +30,17 @@ export const authApi = {
   getCurrentUser: () =>
     apiClient<{ success: boolean; data: User }>('/auth/me', {
       method: 'GET',
+    }),
+
+  forgotPassword: (payload: ForgotPasswordPayload) =>
+    apiClient<ApiResponse>('/auth/forgot-password', {
+      method: 'POST',
+      data: payload,
+    }),
+
+  resetPassword: (payload: ResetPasswordPayload) =>
+    apiClient<ApiResponse>('/auth/reset-password', {
+      method: 'POST',
+      data: payload,
     }),
 };
