@@ -584,3 +584,18 @@ export async function deleteAttendance(
     where: { id },
   });
 }
+
+export async function batchDeleteAttendance(
+  userId: string,
+  ids: string[]
+): Promise<{ count: number }> {
+  const result = await prisma.attendance.deleteMany({
+    where: {
+      id: { in: ids },
+      userId,
+    },
+  });
+
+  return { count: result.count };
+}
+

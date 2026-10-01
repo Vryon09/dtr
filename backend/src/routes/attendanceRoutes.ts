@@ -11,6 +11,7 @@ import {
   createManual,
   updateAttendance,
   deleteAttendance,
+  batchDeleteAttendance,
 } from "../controllers/attendanceController.js";
 import { parseDtr, bulkImport } from "../controllers/dtrUploadController.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -19,6 +20,7 @@ import {
   clockInSchema,
   createManualAttendanceSchema,
   updateAttendanceSchema,
+  batchDeleteAttendanceSchema,
 } from "../schemas/attendanceSchemas.js";
 import { bulkImportSchema } from "../schemas/dtrUploadSchemas.js";
 
@@ -37,6 +39,7 @@ router.post("/clock-out", clockOut);
 router.post("/manual", validate(createManualAttendanceSchema), createManual);
 router.post("/parse-dtr", upload.single("dtrImage"), parseDtr);
 router.post("/bulk-import", validate(bulkImportSchema), bulkImport);
+router.post("/batch-delete", validate(batchDeleteAttendanceSchema), batchDeleteAttendance);
 router.put("/:id", validate(updateAttendanceSchema), updateAttendance);
 router.delete("/:id", deleteAttendance);
 router.get("/today", getToday);
@@ -44,4 +47,5 @@ router.get("/summary", getSummary);
 router.get("/", getHistory);
 
 export default router;
+
 

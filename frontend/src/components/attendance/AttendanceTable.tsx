@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FileText, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Modal } from '../common/Modal';
@@ -13,6 +13,10 @@ interface AttendanceTableProps {
   isCompact?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onSelectAll?: (selectAll: boolean) => void;
   onEdit?: (record: AttendanceRecord) => void;
   onDelete?: (record: AttendanceRecord) => void;
 }
@@ -23,13 +27,32 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
   isCompact = false,
   emptyTitle,
   emptyDescription,
+  selectable = false,
+  selectedIds = new Set(),
+  onToggleSelect,
+  onSelectAll,
   onEdit,
   onDelete,
 }) => {
   const [selectedNotes, setSelectedNotes] = useState<{ date: string; notes: string } | null>(null);
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
   const displayRecords = limit ? records.slice(0, limit) : records;
   const showActions = Boolean(onEdit || onDelete);
+
+  const totalVisible = displayRecords.length;
+  const selectedVisibleCount = displayRecords.filter((r) => selectedIds.has(r.id)).length;
+  const isAllSelected = totalVisible > 0 && selectedVisibleCount === totalVisible;
+  const isIndeterminate = selectedVisibleCount > 0 && selectedVisibleCount < totalVisible;
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
+
+  const totalCols = (selectable ? 1 : 0) + 7 + (showActions ? 1 : 0);
+
 
   return (
     <div>
@@ -37,6 +60,23 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         <table className={`custom-table ${isCompact ? 'compact' : ''}`}>
           <thead>
             <tr>
+              {selectable && (
+                <th style={{ width: '40px', textAlign: 'center', padding: '12px 8px' }}>
+                  <input
+                    type="checkbox"
+                    ref={selectAllCheckboxRef}
+                    checked={isAllSelected}
+                    onChange={(e) => onSelectAll?.(e.target.checked)}
+                    aria-label="Select all visible records"
+                    style={{
+                      cursor: 'pointer',
+                      width: '16px',
+                      height: '16px',
+                      accentColor: 'var(--primary)',
+                    }}
+                  />
+                </th>
+              )}
               <th>{isCompact ? 'Date' : 'Working Date'}</th>
               <th>Clock In</th>
               <th>Clock Out</th>
@@ -50,7 +90,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
           <tbody>
             {displayRecords.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 8 : 7} style={{ textAlign: 'center', padding: isCompact ? '20px 0' : '32px 0' }}>
+                <td colSpan={totalCols} style={{ textAlign: 'center', padding: isCompact ? '20px 0' : '32px 0' }}>
                   <EmptyState
                     size={isCompact ? 'sm' : 'md'}
                     title={emptyTitle || 'No attendance records'}
@@ -62,9 +102,33 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
               displayRecords.map((record) => {
                 const isCompleted = !!record.clockOutAt;
                 const hasBreakData = Boolean(record.breakStartAt && record.breakEndAt);
+                const isSelected = selectedIds.has(record.id);
                 return (
-                  <tr key={record.id}>
+                  <tr
+                    key={record.id}
+                    style={{
+                      background: isSelected ? 'rgba(79, 70, 229, 0.06)' : undefined,
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    {selectable && (
+                      <td style={{ textAlign: 'center', width: '40px', padding: '12px 8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onToggleSelect?.(record.id)}
+                          aria-label={`Select record for ${record.workingDate}`}
+                          style={{
+                            cursor: 'pointer',
+                            width: '16px',
+                            height: '16px',
+                            accentColor: 'var(--primary)',
+                          }}
+                        />
+                      </td>
+                    )}
                     <td style={{ fontWeight: 600 }}>{formatWorkingDate(record.workingDate)}</td>
+
                     <td>{formatTime(record.clockInAt)}</td>
                     <td>{formatTime(record.clockOutAt)}</td>
                     <td style={{ fontSize: '0.813rem', color: hasBreakData ? 'var(--text-main)' : 'var(--text-light)' }}>

@@ -66,6 +66,13 @@ export const attendanceApi = {
       method: 'DELETE',
     }),
 
+  batchDeleteAttendance: (ids: string[]) =>
+    apiClient<{ success: boolean; count: number; message?: string }>('/attendance/batch-delete', {
+      method: 'POST',
+      data: { ids },
+    }),
+
+
   parseDtr: async (formData: FormData) => {
     const response = await axiosInstance.post<{ success: boolean; data: ProcessedDtrEntry[] }>(
       '/attendance/parse-dtr',

@@ -116,6 +116,18 @@ export function useDeleteAttendanceMutation() {
   });
 }
 
+export function useBatchDeleteAttendanceMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => attendanceApi.batchDeleteAttendance(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
+    },
+  });
+}
+
+
 export function useParseDtrMutation() {
   return useMutation({
     mutationFn: (formData: FormData) => attendanceApi.parseDtr(formData),

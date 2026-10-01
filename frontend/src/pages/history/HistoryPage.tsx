@@ -7,6 +7,8 @@ import { WeeklyHistoryList } from '../../components/attendance/WeeklyHistoryList
 import { ManualAttendanceModal } from '../../components/attendance/ManualAttendanceModal';
 import { EditAttendanceModal } from '../../components/attendance/EditAttendanceModal';
 import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttendanceModal';
+import { BulkDeleteAttendanceModal } from '../../components/attendance/BulkDeleteAttendanceModal';
+import { BulkActionBar } from '../../components/attendance/BulkActionBar';
 import { UploadDtrModal } from '../../components/attendance/UploadDtrModal';
 import { Card } from '../../components/common/Card';
 import { StatCard } from '../../components/common/StatCard';
@@ -25,16 +27,20 @@ export const HistoryPage: React.FC = () => {
   } = useAttendanceHistory();
 
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Modals state
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState<boolean>(false);
   const [isUploadDtrModalOpen, setIsUploadDtrModalOpen] = useState<boolean>(false);
 
   const handleTabChange = (tab: 'daily' | 'weekly') => {
+    setSelectedIds(new Set());
     setSearchParams(tab === 'weekly' ? { tab: 'weekly' } : {});
   };
+
 
   const filteredHistory = history.filter((record) => {
     const term = searchTerm.toLowerCase();
@@ -42,6 +48,36 @@ export const HistoryPage: React.FC = () => {
     const notesMatch = record.notes ? record.notes.toLowerCase().includes(term) : false;
     return dateMatch || notesMatch;
   });
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (selectAll: boolean) => {
+    if (selectAll) {
+      const next = new Set(selectedIds);
+      filteredHistory.forEach((r) => next.add(r.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      filteredHistory.forEach((r) => next.delete(r.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const selectedRecords = history.filter((r) => selectedIds.has(r.id));
+  const totalSelectedHours = selectedRecords.reduce(
+    (acc, curr) => acc + Number(curr.renderedHours || 0),
+    0
+  );
 
   const totalRendered = history.reduce((acc, curr) => acc + Number(curr.renderedHours || 0), 0);
   const totalDays = history.length;
@@ -238,10 +274,24 @@ export const HistoryPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Bulk Action Bar (Daily Tab) */}
+        {activeTab === 'daily' && (
+          <BulkActionBar
+            selectedCount={selectedIds.size}
+            totalSelectedHours={totalSelectedHours}
+            onClearSelection={() => setSelectedIds(new Set())}
+            onDeleteSelected={() => setIsBulkDeleteModalOpen(true)}
+          />
+        )}
+
         {/* Tab Content */}
         {activeTab === 'daily' ? (
           <AttendanceTable
             records={filteredHistory}
+            selectable
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onSelectAll={handleSelectAll}
             emptyTitle={searchTerm ? 'No matching logs' : 'No attendance records yet'}
             emptyDescription={
               searchTerm
@@ -281,6 +331,13 @@ export const HistoryPage: React.FC = () => {
         onClose={() => setDeletingRecord(null)}
       />
 
+      <BulkDeleteAttendanceModal
+        records={selectedRecords}
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onSuccess={() => setSelectedIds(new Set())}
+      />
+
       <UploadDtrModal
         isOpen={isUploadDtrModalOpen}
         onClose={() => setIsUploadDtrModalOpen(false)}
@@ -289,4 +346,5 @@ export const HistoryPage: React.FC = () => {
     </div>
   );
 };
+
 

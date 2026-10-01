@@ -152,3 +152,12 @@ export const updateAttendanceSchema = z
 export type ClockInInput = z.infer<typeof clockInSchema>;
 export type CreateManualAttendanceInput = z.infer<typeof createManualAttendanceSchema>;
 export type UpdateAttendanceInput = z.infer<typeof updateAttendanceSchema>;
+
+export const batchDeleteAttendanceSchema = z.object({
+  ids: z
+    .array(z.string().min(1, "ID cannot be empty"))
+    .min(1, "At least one attendance ID must be provided"),
+});
+
+export type BatchDeleteAttendanceInput = z.infer<typeof batchDeleteAttendanceSchema>;
+
