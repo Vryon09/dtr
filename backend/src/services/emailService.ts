@@ -1,4 +1,4 @@
-import nodemailer, { Transporter } from "nodemailer";
+import { Resend } from "resend";
 
 interface SendPasswordResetOptions {
   to: string;
@@ -6,24 +6,15 @@ interface SendPasswordResetOptions {
   resetUrl: string;
 }
 
-let transporter: Transporter | null = null;
+let resendClient: Resend | null = null;
 
-function getTransporter(): Transporter | null {
-  if (transporter) return transporter;
+function getResendClient(): Resend | null {
+  if (resendClient) return resendClient;
 
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (host && port && user && pass) {
-    transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-    return transporter;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) {
+    resendClient = new Resend(apiKey);
+    return resendClient;
   }
 
   return null;
@@ -34,7 +25,7 @@ export async function sendPasswordResetEmail({
   name,
   resetUrl,
 }: SendPasswordResetOptions): Promise<void> {
-  const mailer = getTransporter();
+  const resend = getResendClient();
   const recipientName = name ? ` ${name}` : "";
 
   const subject = "Reset your DTR password";
@@ -72,7 +63,7 @@ export async function sendPasswordResetEmail({
 
   const textContent = `Hi${recipientName},\n\nWe received a request to reset your password for your DTR account.\n\nClick the link below to set a new password (valid for 1 hour):\n${resetUrl}\n\nIf you did not make this request, you can safely ignore this email.`;
 
-  if (!mailer) {
+  if (!resend) {
     console.log("=================================================");
     console.log(" [DEV EMAIL] Password Reset Link Generated:");
     console.log(` To: ${to}`);
@@ -81,20 +72,22 @@ export async function sendPasswordResetEmail({
     return;
   }
 
-  const from = process.env.EMAIL_FROM || '"DTR Support" <noreply@dtr-app.local>';
+  const from = process.env.EMAIL_FROM || "DTR Support <onboarding@resend.dev>";
 
-  console.log(`[Email] Attempting to send reset email to ${to} via SMTP (${process.env.SMTP_HOST})...`);
-  try {
-    const info = await mailer.sendMail({
-      from,
-      to,
-      subject,
-      text: textContent,
-      html: htmlContent,
-    });
-    console.log(`[Email] Email sent successfully! MessageId: ${info.messageId}`);
-  } catch (error) {
-    console.error(`[Email] Failed to send email:`, error);
-    throw error;
+  console.log(`[Email] Dispatching password reset email to ${to} via Resend HTTPS API...`);
+
+  const response = await resend.emails.send({
+    from,
+    to: [to],
+    subject,
+    text: textContent,
+    html: htmlContent,
+  });
+
+  if (response.error) {
+    console.error(`[Email] Resend API Error:`, response.error);
+    throw new Error(response.error.message || "Failed to send reset email");
   }
+
+  console.log(`[Email] Email sent successfully via Resend! ID: ${response.data?.id}`);
 }
