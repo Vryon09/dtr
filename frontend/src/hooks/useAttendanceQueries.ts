@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { attendanceApi } from '../api/attendanceApi';
 import { attendanceKeys } from './queryKeys';
 import type {
+  BulkImportPayload,
   ClockActionPayload,
   CreateManualAttendancePayload,
   UpdateAttendancePayload,
@@ -114,3 +115,21 @@ export function useDeleteAttendanceMutation() {
     },
   });
 }
+
+export function useParseDtrMutation() {
+  return useMutation({
+    mutationFn: (formData: FormData) => attendanceApi.parseDtr(formData),
+  });
+}
+
+export function useBulkImportMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: BulkImportPayload) => attendanceApi.bulkImport(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
+    },
+  });
+}
+

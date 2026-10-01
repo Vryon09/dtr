@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Calendar, RefreshCw, Clock, Layers, Plus, CalendarDays, List } from 'lucide-react';
+import { Search, Calendar, RefreshCw, Clock, Layers, Plus, CalendarDays, List, Upload } from 'lucide-react';
 import { useAttendanceHistory } from '../../hooks/useAttendanceQueries';
 import { AttendanceTable } from '../../components/attendance/AttendanceTable';
 import { WeeklyHistoryList } from '../../components/attendance/WeeklyHistoryList';
 import { ManualAttendanceModal } from '../../components/attendance/ManualAttendanceModal';
 import { EditAttendanceModal } from '../../components/attendance/EditAttendanceModal';
 import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttendanceModal';
+import { UploadDtrModal } from '../../components/attendance/UploadDtrModal';
 import { Card } from '../../components/common/Card';
 import { StatCard } from '../../components/common/StatCard';
 import type { AttendanceRecord } from '../../types/attendance';
@@ -19,6 +20,7 @@ export const HistoryPage: React.FC = () => {
   const {
     data: history = [],
     isLoading,
+    isFetching,
     refetch: fetchHistory,
   } = useAttendanceHistory();
 
@@ -28,6 +30,7 @@ export const HistoryPage: React.FC = () => {
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
+  const [isUploadDtrModalOpen, setIsUploadDtrModalOpen] = useState<boolean>(false);
 
   const handleTabChange = (tab: 'daily' | 'weekly') => {
     setSearchParams(tab === 'weekly' ? { tab: 'weekly' } : {});
@@ -79,6 +82,28 @@ export const HistoryPage: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setIsUploadDtrModalOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 18px',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-main)',
+              border: '1px solid var(--border-subtle)',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'var(--transition)',
+            }}
+          >
+            <Upload size={16} />
+            <span>Upload DTR</span>
+          </button>
+
+          <button
             onClick={() => fetchHistory()}
             style={{
               display: 'flex',
@@ -95,7 +120,7 @@ export const HistoryPage: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            <RefreshCw size={16} className={isLoading ? 'spin' : ''} />
+            <RefreshCw size={16} className={isFetching || isLoading ? 'spin' : ''} />
             <span>Refresh</span>
           </button>
         </div>
@@ -254,6 +279,12 @@ export const HistoryPage: React.FC = () => {
         record={deletingRecord}
         isOpen={Boolean(deletingRecord)}
         onClose={() => setDeletingRecord(null)}
+      />
+
+      <UploadDtrModal
+        isOpen={isUploadDtrModalOpen}
+        onClose={() => setIsUploadDtrModalOpen(false)}
+        existingRecords={history}
       />
     </div>
   );

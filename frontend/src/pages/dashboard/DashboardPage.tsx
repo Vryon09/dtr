@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ArrowRight, RefreshCw, Plus, SlidersHorizontal } from 'lucide-react';
+import { Calendar, ArrowRight, RefreshCw, Plus, SlidersHorizontal, Upload } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   useAttendanceToday,
@@ -20,6 +20,7 @@ import { AttendanceTable } from '../../components/attendance/AttendanceTable';
 import { ManualAttendanceModal } from '../../components/attendance/ManualAttendanceModal';
 import { EditAttendanceModal } from '../../components/attendance/EditAttendanceModal';
 import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttendanceModal';
+import { UploadDtrModal } from '../../components/attendance/UploadDtrModal';
 import { RightRail } from '../../components/layout/RightRail';
 import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -40,18 +41,21 @@ export const DashboardPage: React.FC = () => {
   const {
     data: todayData = null,
     isLoading: isTodayLoading,
+    isFetching: isTodayFetching,
     refetch: refetchToday,
   } = useAttendanceToday();
 
   const {
     data: summaryData = null,
     isLoading: isSummaryLoading,
+    isFetching: isSummaryFetching,
     refetch: refetchSummary,
   } = useAttendanceSummary();
 
   const {
     data: history = [],
     isLoading: isHistoryLoading,
+    isFetching: isHistoryFetching,
     refetch: refetchHistory,
   } = useAttendanceHistory();
 
@@ -61,6 +65,7 @@ export const DashboardPage: React.FC = () => {
   const clockOutMutation = useClockOutMutation();
 
   const isLoading = isTodayLoading || isSummaryLoading || isHistoryLoading;
+  const isRefreshing = isTodayFetching || isSummaryFetching || isHistoryFetching;
   const isClocking =
     clockInMutation.isPending ||
     startBreakMutation.isPending ||
@@ -72,6 +77,7 @@ export const DashboardPage: React.FC = () => {
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
+  const [isUploadDtrModalOpen, setIsUploadDtrModalOpen] = useState<boolean>(false);
 
   const handleRefresh = () => {
     refetchToday();
@@ -138,6 +144,28 @@ export const DashboardPage: React.FC = () => {
             <span>Log Attendance</span>
           </button>
 
+          <button
+            onClick={() => setIsUploadDtrModalOpen(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 16px',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-main)',
+              border: '1px solid var(--border-subtle)',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'var(--transition)',
+            }}
+          >
+            <Upload size={16} />
+            <span>Upload DTR</span>
+          </button>
+
           {/* Customize Elements Modal Trigger */}
           <button
             onClick={() => setIsCustomizeModalOpen(true)}
@@ -196,7 +224,7 @@ export const DashboardPage: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            <RefreshCw size={16} className={isLoading ? 'spin' : ''} />
+            <RefreshCw size={16} className={isRefreshing ? 'spin' : ''} />
             <span>Refresh</span>
           </button>
         </div>
@@ -350,6 +378,12 @@ export const DashboardPage: React.FC = () => {
         record={deletingRecord}
         isOpen={Boolean(deletingRecord)}
         onClose={() => setDeletingRecord(null)}
+      />
+
+      <UploadDtrModal
+        isOpen={isUploadDtrModalOpen}
+        onClose={() => setIsUploadDtrModalOpen(false)}
+        existingRecords={history}
       />
     </div>
   );

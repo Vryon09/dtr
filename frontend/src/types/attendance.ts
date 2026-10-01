@@ -71,3 +71,32 @@ export interface WeeklySummary {
   isCurrentWeek: boolean;
 }
 
+export interface ProcessedDtrEntry {
+  day: number;
+  clockIn: string | null;
+  clockOut: string | null;
+  breakStartTime: string | null;
+  breakEndTime: string | null;
+  hasData: boolean;
+}
+
+export interface BulkImportPayload {
+  payPeriodYear: number;
+  payPeriodMonth: number;
+  entries: Array<{
+    day: number;
+    clockIn: string;
+    clockOut?: string;
+    breakStart?: string;
+    breakEnd?: string;
+    notes?: string;
+  }>;
+}
+
+export interface BulkImportResult {
+  created: Array<{ day: number; id: string }>;
+  skipped: Array<{ day: number; reason: string }>;
+  errors: Array<{ day: number; message: string }>;
+}
+
+
