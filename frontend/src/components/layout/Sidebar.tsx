@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import owlMascot from "../../assets/owl-mascot.png";
 import { useAuth } from "../../hooks/useAuth";
+import { InternshipSwitcher } from "../internship/InternshipSwitcher";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -52,6 +53,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           >
             <X size={20} />
           </button>
+        </div>
+
+        <div style={{ padding: "0 12px 14px" }}>
+          <InternshipSwitcher style={{ width: "100%" }} />
         </div>
 
         <nav className="sidebar-nav">

@@ -1,8 +1,10 @@
 import { prisma } from "../lib/prisma.js";
+import { getActiveInternship } from "./internshipService.js";
 
 export interface FormattedAttendance {
   id: string;
   userId: string;
+  internshipId: string;
   date: Date;
   workingDate?: string;
   clockIn: Date;
@@ -63,6 +65,7 @@ function calculateRenderedHours(
 function formatAttendance(attendance: {
   id: string;
   userId: string;
+  internshipId: string;
   date: Date;
   clockIn: Date;
   clockOut: Date | null;
@@ -106,10 +109,10 @@ export async function clockIn(
   const now = new Date();
   const todayDate = getManilaDate(now);
 
-  const active = await prisma.attendance.findFirst({
+  const activeSession = await prisma.attendance.findFirst({
     where: { userId, clockOut: null },
   });
-  if (active) {
+  if (activeSession) {
     const err = new Error("User already has an active clock-in") as Error & {
       statusCode: number;
     };
@@ -117,17 +120,26 @@ export async function clockIn(
     throw err;
   }
 
+  const activeInternship = await getActiveInternship(userId);
+  if (activeInternship.status !== "ACTIVE") {
+    const err = new Error(
+      "Cannot clock in for a completed or archived internship. Please switch to an active internship or create a new one."
+    ) as Error & { statusCode: number };
+    err.statusCode = 400;
+    throw err;
+  }
+
   const todayAttendance = await prisma.attendance.findUnique({
     where: {
-      userId_date: {
-        userId,
+      internshipId_date: {
+        internshipId: activeInternship.id,
         date: todayDate,
       },
     },
   });
   if (todayAttendance) {
     const err = new Error(
-      "Attendance already recorded for today"
+      "Attendance already recorded for today in this internship"
     ) as Error & { statusCode: number };
     err.statusCode = 400;
     throw err;
@@ -136,6 +148,7 @@ export async function clockIn(
   const attendance = await prisma.attendance.create({
     data: {
       userId,
+      internshipId: activeInternship.id,
       date: todayDate,
       clockIn: now,
       clockOut: null,
@@ -263,7 +276,6 @@ export async function clockOut(
   let finalBreakEnd = active.breakEnd;
   let finalBreakMinutes = active.breakMinutes;
 
-  // Auto-close open break if user clocks out while on break
   if (active.breakStart && !active.breakEnd) {
     finalBreakEnd = now;
     finalBreakMinutes = Math.round((now.getTime() - active.breakStart.getTime()) / (1000 * 60));
@@ -282,13 +294,21 @@ export async function clockOut(
 }
 
 export async function getToday(
-  userId: string
+  userId: string,
+  internshipId?: string
 ): Promise<FormattedAttendance | null> {
   const todayDate = getManilaDate();
+  let targetInternshipId = internshipId;
+
+  if (!targetInternshipId) {
+    const active = await getActiveInternship(userId);
+    targetInternshipId = active.id;
+  }
+
   const attendance = await prisma.attendance.findUnique({
     where: {
-      userId_date: {
-        userId,
+      internshipId_date: {
+        internshipId: targetInternshipId,
         date: todayDate,
       },
     },
@@ -302,10 +322,23 @@ export async function getToday(
 }
 
 export async function getHistory(
-  userId: string
+  userId: string,
+  internshipId?: string
 ): Promise<FormattedAttendance[]> {
+  let whereClause: { userId: string; internshipId?: string } = { userId };
+
+  if (internshipId === "all") {
+    // Return all records across all internships for this user
+    whereClause = { userId };
+  } else if (internshipId) {
+    whereClause = { userId, internshipId };
+  } else {
+    const active = await getActiveInternship(userId);
+    whereClause = { userId, internshipId: active.id };
+  }
+
   const attendances = await prisma.attendance.findMany({
-    where: { userId },
+    where: whereClause,
     orderBy: { date: "desc" },
   });
 
@@ -313,22 +346,27 @@ export async function getHistory(
 }
 
 export async function getSummary(
-  userId: string
+  userId: string,
+  internshipId?: string
 ): Promise<AttendanceSummary> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { requiredHours: true },
-  });
-
-  if (!user) {
-    const err = new Error("User not found") as Error & { statusCode: number };
-    err.statusCode = 404;
-    throw err;
+  let targetInternship;
+  if (internshipId) {
+    targetInternship = await prisma.internship.findFirst({
+      where: { id: internshipId, userId },
+    });
+    if (!targetInternship) {
+      const err = new Error("Internship not found") as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+  } else {
+    targetInternship = await getActiveInternship(userId);
   }
 
   const completedAttendances = await prisma.attendance.findMany({
     where: {
       userId,
+      internshipId: targetInternship.id,
       clockOut: { not: null },
     },
   });
@@ -346,16 +384,16 @@ export async function getSummary(
 
   const completedHours = Math.round(totalCompletedHours * 100) / 100;
   const remainingHours =
-    Math.round(Math.max(user.requiredHours - completedHours, 0) * 100) / 100;
+    Math.round(Math.max(targetInternship.requiredHours - completedHours, 0) * 100) / 100;
   const progressPercentage =
-    user.requiredHours > 0
+    targetInternship.requiredHours > 0
       ? Math.round(
-          Math.min((completedHours / user.requiredHours) * 100, 100) * 100
+          Math.min((completedHours / targetInternship.requiredHours) * 100, 100) * 100
         ) / 100
       : 0;
 
   return {
-    requiredHours: user.requiredHours,
+    requiredHours: targetInternship.requiredHours,
     completedHours,
     remainingHours,
     progressPercentage,
@@ -371,6 +409,7 @@ export async function createManual(
     breakStart?: string;
     breakEnd?: string;
     notes?: string;
+    internshipId?: string;
   }
 ): Promise<FormattedAttendance> {
   const targetDate = new Date(`${data.date}T00:00:00.000Z`);
@@ -395,17 +434,39 @@ export async function createManual(
     throw err;
   }
 
+  let internship;
+  if (data.internshipId) {
+    internship = await prisma.internship.findFirst({
+      where: { id: data.internshipId, userId },
+    });
+    if (!internship) {
+      const err = new Error("Internship not found") as Error & { statusCode: number };
+      err.statusCode = 404;
+      throw err;
+    }
+  } else {
+    internship = await getActiveInternship(userId);
+  }
+
+  if (internship.status !== "ACTIVE") {
+    const err = new Error("Cannot add attendance for a completed or archived internship") as Error & {
+      statusCode: number;
+    };
+    err.statusCode = 400;
+    throw err;
+  }
+
   const existing = await prisma.attendance.findUnique({
     where: {
-      userId_date: {
-        userId,
+      internshipId_date: {
+        internshipId: internship.id,
         date: targetDate,
       },
     },
   });
 
   if (existing) {
-    const err = new Error("Attendance already recorded for this date") as Error & {
+    const err = new Error("Attendance already recorded for this date in this internship") as Error & {
       statusCode: number;
     };
     err.statusCode = 400;
@@ -433,6 +494,7 @@ export async function createManual(
   const attendance = await prisma.attendance.create({
     data: {
       userId,
+      internshipId: internship.id,
       date: targetDate,
       clockIn: clockInDate,
       clockOut: clockOutDate,
@@ -461,11 +523,6 @@ interface AttendanceTimeChanges {
   breakEnd?: string | null;
 }
 
-/**
- * Merges requested time changes onto an existing record.
- * `undefined` keeps the current value, `null` clears it.
- * Throws a 400 HttpError when the merged result is invalid.
- */
 function mergeAttendanceTimes(
   record: {
     clockIn: Date;
@@ -530,14 +587,14 @@ export async function updateAttendance(
     if (newDate.getTime() !== record.date.getTime()) {
       const collision = await prisma.attendance.findUnique({
         where: {
-          userId_date: {
-            userId,
+          internshipId_date: {
+            internshipId: record.internshipId,
             date: newDate,
           },
         },
       });
       if (collision) {
-        const err = new Error("Attendance already recorded for this date") as Error & {
+        const err = new Error("Attendance already recorded for this date in this internship") as Error & {
           statusCode: number;
         };
         err.statusCode = 400;
@@ -637,7 +694,6 @@ export async function batchUpdateAttendance(
 
   const recordMap = new Map(records.map((r) => [r.id, r]));
 
-  // Validate everything up front so the batch is all-or-nothing
   const prepared = updates.map((u) => {
     const record = recordMap.get(u.id)!;
     const prefix = `${record.date.toISOString().slice(0, 10)}: `;
@@ -645,7 +701,6 @@ export async function batchUpdateAttendance(
     return { update: u, record, merged };
   });
 
-  // Only one open (no clock-out) session may exist per user
   const openInBatch = prepared.filter((p) => !p.merged.finalClockOut);
   if (openInBatch.length > 0) {
     const openOutside = await prisma.attendance.count({
@@ -674,4 +729,3 @@ export async function batchUpdateAttendance(
 
   return updated.map(formatAttendance);
 }
-

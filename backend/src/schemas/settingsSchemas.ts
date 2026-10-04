@@ -16,7 +16,7 @@ export const updateSettingsSchema = z
       data.email !== undefined ||
       data.requiredHours !== undefined,
     {
-      message: "At least one field (name, email, requiredHours) must be provided",
+      message: "At least one field (name, email) must be provided",
     }
   );
 

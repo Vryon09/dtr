@@ -52,6 +52,7 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
+  Internship: 'Internship',
   PasswordResetToken: 'PasswordResetToken',
   Attendance: 'Attendance'
 } as const
@@ -78,11 +79,28 @@ export const UserScalarFieldEnum = {
   passwordHash: 'passwordHash',
   name: 'name',
   requiredHours: 'requiredHours',
+  activeInternshipId: 'activeInternshipId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const InternshipScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  title: 'title',
+  companyName: 'companyName',
+  requiredHours: 'requiredHours',
+  status: 'status',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InternshipScalarFieldEnum = (typeof InternshipScalarFieldEnum)[keyof typeof InternshipScalarFieldEnum]
 
 
 export const PasswordResetTokenScalarFieldEnum = {
@@ -99,6 +117,7 @@ export type PasswordResetTokenScalarFieldEnum = (typeof PasswordResetTokenScalar
 export const AttendanceScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  internshipId: 'internshipId',
   date: 'date',
   clockIn: 'clockIn',
   clockOut: 'clockOut',

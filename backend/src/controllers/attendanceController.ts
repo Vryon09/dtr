@@ -59,7 +59,8 @@ export async function clockOut(req: Request, res: Response): Promise<void> {
 
 export async function getToday(req: Request, res: Response): Promise<void> {
   try {
-    const attendance = await attendanceService.getToday(req.user!.id);
+    const internshipId = req.query.internshipId as string | undefined;
+    const attendance = await attendanceService.getToday(req.user!.id, internshipId);
     let status: "NOT_CLOCKED_IN" | "CLOCKED_IN" | "ON_BREAK" | "CLOCKED_OUT" = "NOT_CLOCKED_IN";
     if (attendance) {
       if (attendance.clockOut) {
@@ -87,7 +88,8 @@ export async function getToday(req: Request, res: Response): Promise<void> {
 
 export async function getHistory(req: Request, res: Response): Promise<void> {
   try {
-    const attendances = await attendanceService.getHistory(req.user!.id);
+    const internshipId = req.query.internshipId as string | undefined;
+    const attendances = await attendanceService.getHistory(req.user!.id, internshipId);
     res.status(200).json({ success: true, data: attendances });
   } catch (err) {
     const e = err as Error & { statusCode?: number };
@@ -99,7 +101,8 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
 
 export async function getSummary(req: Request, res: Response): Promise<void> {
   try {
-    const summary = await attendanceService.getSummary(req.user!.id);
+    const internshipId = req.query.internshipId as string | undefined;
+    const summary = await attendanceService.getSummary(req.user!.id, internshipId);
     res.status(200).json({ success: true, data: summary });
   } catch (err) {
     const e = err as Error & { statusCode?: number };

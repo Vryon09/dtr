@@ -1,18 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Lock, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  User as UserIcon,
+  Lock,
+  Save,
+  CheckCircle,
+  AlertCircle,
+  Briefcase,
+  Plus,
+  Pencil,
+  Check,
+  Trash2,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { useUpdateSettingsMutation, useUpdatePasswordMutation } from '../../hooks/useSettingsQueries';
+import {
+  useUpdateSettingsMutation,
+  useUpdatePasswordMutation,
+} from '../../hooks/useSettingsQueries';
+import {
+  useInternships,
+  useSwitchInternshipMutation,
+  useUpdateInternshipMutation,
+} from '../../hooks/useInternshipQueries';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { CreateInternshipModal } from '../../components/internship/CreateInternshipModal';
+import { EditInternshipModal } from '../../components/internship/EditInternshipModal';
+import { DeleteInternshipModal } from '../../components/internship/DeleteInternshipModal';
+import type { InternshipSummary } from '../../types/internship';
 
 export const SettingsPage: React.FC = () => {
   const { user, refreshUser } = useAuth();
 
-  // Profile Form state initialized from current user
+  // Profile Form state (Name and Email only)
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [requiredHours, setRequiredHours] = useState<number>(user?.requiredHours || 300);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -23,14 +45,22 @@ export const SettingsPage: React.FC = () => {
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
+  // Internship modals state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingInternship, setEditingInternship] = useState<InternshipSummary | null>(null);
+  const [deletingInternship, setDeletingInternship] = useState<InternshipSummary | null>(null);
+
   const updateSettingsMutation = useUpdateSettingsMutation();
   const updatePasswordMutation = useUpdatePasswordMutation();
+
+  const { data: internships = [], isLoading: isInternshipsLoading } = useInternships();
+  const switchMutation = useSwitchInternshipMutation();
+  const updateInternshipMutation = useUpdateInternshipMutation();
 
   useEffect(() => {
     if (user) {
       setName(user.name);
       setEmail(user.email);
-      setRequiredHours(user.requiredHours);
     }
   }, [user]);
 
@@ -43,10 +73,9 @@ export const SettingsPage: React.FC = () => {
       await updateSettingsMutation.mutateAsync({
         name: name.trim(),
         email: email.trim(),
-        requiredHours: Number(requiredHours),
       });
       await refreshUser();
-      setProfileSuccess('Profile and OJT target hours updated successfully!');
+      setProfileSuccess('Profile account details updated successfully!');
     } catch (err: unknown) {
       setProfileError(err instanceof Error ? err.message : 'Failed to update profile settings');
     }
@@ -81,41 +110,267 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleSwitch = async (id: string) => {
+    await switchMutation.mutateAsync(id);
+  };
+
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'COMPLETED' ? 'ACTIVE' : 'COMPLETED';
+    await updateInternshipMutation.mutateAsync({
+      id,
+      payload: { status: nextStatus },
+    });
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '840px' }}>
-      {/* Top Header */}
-      <div className="top-header">
-        <div>
-          <h1 className="greeting-title">Account Settings</h1>
-          <p className="greeting-subtitle">
-            Manage your personal profile, OJT hour requirements, and account security
-          </p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      {/* Header */}
+      <div>
+        <h1 className="page-title">Settings & Configuration</h1>
+        <p className="page-subtitle">
+          Manage your account profile, internship target hours, and security preferences.
+        </p>
       </div>
 
-      {/* Profile & Target Hours Form */}
+      {/* Internship & OJT Profiles Card */}
+      <Card>
+        <div
+          className="card-header"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div>
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Briefcase size={20} color="var(--primary)" />
+              Internship & OJT Profiles
+            </h3>
+            <p className="card-subtitle">
+              Manage titles, required target hours, company details, and statuses for each internship
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsCreateModalOpen(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={16} />
+            <span>New Internship</span>
+          </Button>
+        </div>
+
+        {isInternshipsLoading ? (
+          <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading internship profiles...
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {internships.map((item) => {
+              const isCompleted = item.status === 'COMPLETED';
+
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: item.isActive
+                      ? '1.5px solid var(--primary)'
+                      : '1px solid var(--border-subtle)',
+                    background: item.isActive
+                      ? 'rgba(59, 130, 246, 0.03)'
+                      : 'var(--bg-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                          {item.title}
+                        </span>
+                        {item.isActive && (
+                          <span
+                            style={{
+                              fontSize: '0.725rem',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              fontWeight: 700,
+                              background: 'rgba(59, 130, 246, 0.15)',
+                              color: 'var(--primary)',
+                            }}
+                          >
+                            Active Tracking
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontSize: '0.725rem',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontWeight: 600,
+                            background: isCompleted
+                              ? 'rgba(16, 185, 129, 0.15)'
+                              : 'rgba(100, 116, 139, 0.15)',
+                            color: isCompleted ? 'var(--success)' : 'var(--text-secondary)',
+                          }}
+                        >
+                          {isCompleted ? 'Completed' : 'In Progress'}
+                        </span>
+                      </div>
+
+                      {item.companyName && (
+                        <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          Company: <strong>{item.companyName}</strong>
+                        </p>
+                      )}
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          fontSize: '0.825rem',
+                          color: 'var(--text-secondary)',
+                          marginTop: '6px',
+                        }}
+                      >
+                        <span>
+                          Target: <strong>{item.requiredHours} hrs</strong>
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Rendered: <strong>{item.completedHours} hrs</strong>
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Remaining: <strong>{item.remainingHours} hrs</strong>
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Progress: <strong>{item.progressPercentage}%</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {!item.isActive && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleSwitch(item.id)}
+                          isLoading={switchMutation.isPending}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Check size={14} />
+                          <span>Set as Active</span>
+                        </Button>
+                      )}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleToggleStatus(item.id, item.status)}
+                        isLoading={updateInternshipMutation.isPending}
+                      >
+                        {isCompleted ? 'Mark Active' : 'Mark Completed'}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingInternship(item)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Pencil size={14} />
+                        <span>Edit Details</span>
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setDeletingInternship(item)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          color: 'var(--danger)',
+                          borderColor: 'rgba(239, 68, 68, 0.3)',
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        <span>Delete</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div
+                    style={{
+                      height: '6px',
+                      width: '100%',
+                      borderRadius: '3px',
+                      background: 'var(--border-subtle)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${Math.min(item.progressPercentage, 100)}%`,
+                        background: isCompleted ? 'var(--success)' : 'var(--primary)',
+                        borderRadius: '3px',
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Profile Settings Card */}
       <Card>
         <div className="card-header">
           <div>
             <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <UserIcon size={20} color="var(--primary)" />
-              Profile & Target Hours
+              Profile Details
             </h3>
-            <p className="card-subtitle">Update your personal details and total required OJT hours</p>
+            <p className="card-subtitle">Manage your personal identification and account email</p>
           </div>
         </div>
 
         {profileSuccess && (
           <div
             style={{
+              padding: '12px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid var(--success)',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'var(--success-light)',
-              color: 'var(--success-text)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '20px',
+              color: 'var(--success)',
+              marginBottom: '16px',
               fontSize: '0.875rem',
             }}
           >
@@ -127,14 +382,15 @@ export const SettingsPage: React.FC = () => {
         {profileError && (
           <div
             style={{
+              padding: '12px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid var(--danger)',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'var(--danger-light)',
-              color: 'var(--danger-text)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '20px',
+              color: 'var(--danger)',
+              marginBottom: '16px',
               fontSize: '0.875rem',
             }}
           >
@@ -164,19 +420,7 @@ export const SettingsPage: React.FC = () => {
             />
           </div>
 
-          <Input
-            label="Required OJT Target Hours"
-            type="number"
-            min={1}
-            max={2000}
-            value={requiredHours}
-            onChange={(e) => setRequiredHours(Number(e.target.value))}
-            helperText="Changing target hours recalculates remaining hours and progress metrics"
-            required
-            disabled={updateSettingsMutation.isPending}
-          />
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
             <Button
               type="submit"
               variant="primary"
@@ -204,14 +448,15 @@ export const SettingsPage: React.FC = () => {
         {passwordSuccess && (
           <div
             style={{
+              padding: '12px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid var(--success)',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'var(--success-light)',
-              color: 'var(--success-text)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '20px',
+              color: 'var(--success)',
+              marginBottom: '16px',
               fontSize: '0.875rem',
             }}
           >
@@ -223,14 +468,15 @@ export const SettingsPage: React.FC = () => {
         {passwordError && (
           <div
             style={{
+              padding: '12px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid var(--danger)',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'var(--danger-light)',
-              color: 'var(--danger-text)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '20px',
+              color: 'var(--danger)',
+              marginBottom: '16px',
               fontSize: '0.875rem',
             }}
           >
@@ -243,7 +489,7 @@ export const SettingsPage: React.FC = () => {
           <Input
             label="Current Password"
             type="password"
-            placeholder="••••••••"
+            placeholder="Enter your current password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
@@ -284,6 +530,26 @@ export const SettingsPage: React.FC = () => {
           </div>
         </form>
       </Card>
+
+      {/* Modals for Internship Management */}
+      <CreateInternshipModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        suggestedTitle={`Internship ${internships.length + 1}`}
+      />
+
+      <EditInternshipModal
+        isOpen={Boolean(editingInternship)}
+        onClose={() => setEditingInternship(null)}
+        internship={editingInternship}
+      />
+
+      <DeleteInternshipModal
+        isOpen={Boolean(deletingInternship)}
+        onClose={() => setDeletingInternship(null)}
+        internship={deletingInternship}
+        totalInternshipsCount={internships.length}
+      />
     </div>
   );
 };

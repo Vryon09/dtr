@@ -11,6 +11,7 @@ export interface SafeUser {
   email: string;
   name: string | null;
   requiredHours: number;
+  activeInternshipId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ function stripHash(user: {
   passwordHash: string;
   name: string | null;
   requiredHours: number;
+  activeInternshipId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): SafeUser {
@@ -51,7 +53,21 @@ export async function register(
     data: { email, passwordHash, name: name ?? null, requiredHours },
   });
 
-  return stripHash(user);
+  const defaultInternship = await prisma.internship.create({
+    data: {
+      userId: user.id,
+      title: "Internship 1",
+      requiredHours,
+      status: "ACTIVE",
+    },
+  });
+
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: { activeInternshipId: defaultInternship.id },
+  });
+
+  return stripHash(updatedUser);
 }
 
 export async function login(email: string, password: string): Promise<SafeUser> {

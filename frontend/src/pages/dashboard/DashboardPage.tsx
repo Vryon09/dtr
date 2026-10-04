@@ -21,6 +21,8 @@ import { ManualAttendanceModal } from '../../components/attendance/ManualAttenda
 import { EditAttendanceModal } from '../../components/attendance/EditAttendanceModal';
 import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttendanceModal';
 import { UploadDtrModal } from '../../components/attendance/UploadDtrModal';
+import { GoalCompletedBanner } from '../../components/attendance/GoalCompletedBanner';
+import { InternshipSwitcher } from '../../components/internship/InternshipSwitcher';
 import { RightRail } from '../../components/layout/RightRail';
 import { Card } from '../../components/common/Card';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -117,6 +119,8 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="top-header-actions">
+          <InternshipSwitcher />
+
           <div className="date-pill">
             <Calendar size={16} color="var(--primary)" />
             <span>{getTodayFormatted()}</span>
@@ -229,6 +233,12 @@ export const DashboardPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Goal Completed Celebration Banner */}
+      <GoalCompletedBanner
+        completedHours={summaryData?.completedHours || 0}
+        requiredHours={summaryData?.requiredHours || 0}
+      />
 
       {/* Metrics Counter Grid */}
       {visibility.metrics && <MetricsGrid summary={summaryData} isLoading={isLoading} />}

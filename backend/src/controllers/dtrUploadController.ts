@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { parseDtrImage } from "../services/dtrParserService.js";
 import { BulkImportInput } from "../schemas/dtrUploadSchemas.js";
 import { prisma } from "../lib/prisma.js";
+import { getActiveInternship } from "../services/internshipService.js";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -38,6 +39,15 @@ export async function parseDtr(req: Request, res: Response): Promise<void> {
 export async function bulkImport(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.user!.id;
+    const activeInternship = await getActiveInternship(userId);
+    if (activeInternship.status !== "ACTIVE") {
+      res.status(400).json({
+        success: false,
+        message: "Cannot import DTR to a completed or archived internship.",
+      });
+      return;
+    }
+
     const { payPeriodYear, payPeriodMonth, entries } =
       req.body as BulkImportInput;
 
@@ -60,11 +70,11 @@ export async function bulkImport(req: Request, res: Response): Promise<void> {
         const dateStr = `${payPeriodYear}-${String(payPeriodMonth).padStart(2, "0")}-${String(entry.day).padStart(2, "0")}`;
         const targetDate = new Date(`${dateStr}T00:00:00.000Z`);
 
-        // Check for existing attendance on this date
+        // Check for existing attendance on this date in active internship
         const existing = await prisma.attendance.findUnique({
           where: {
-            userId_date: {
-              userId,
+            internshipId_date: {
+              internshipId: activeInternship.id,
               date: targetDate,
             },
           },
@@ -120,6 +130,7 @@ export async function bulkImport(req: Request, res: Response): Promise<void> {
         const attendance = await prisma.attendance.create({
           data: {
             userId,
+            internshipId: activeInternship.id,
             date: targetDate,
             clockIn: clockInDate,
             clockOut: clockOutDate,

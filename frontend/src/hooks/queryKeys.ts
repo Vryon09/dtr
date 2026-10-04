@@ -10,6 +10,12 @@ export const authKeys = {
   currentUser: () => [...authKeys.all, 'currentUser'] as const,
 };
 
+export const internshipKeys = {
+  all: ['internships'] as const,
+  list: () => [...internshipKeys.all, 'list'] as const,
+  active: () => [...internshipKeys.all, 'active'] as const,
+};
+
 export const settingsKeys = {
   all: ['settings'] as const,
   userSettings: () => [...settingsKeys.all, 'userSettings'] as const,

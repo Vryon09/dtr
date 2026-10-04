@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Calendar, RefreshCw, Clock, Layers, Plus, CalendarDays, List, Upload } from 'lucide-react';
+import { Search, Calendar, RefreshCw, Clock, Layers, Plus, CalendarDays, List, Upload, Briefcase } from 'lucide-react';
 import { useAttendanceHistory } from '../../hooks/useAttendanceQueries';
+import { useInternships } from '../../hooks/useInternshipQueries';
 import { AttendanceTable } from '../../components/attendance/AttendanceTable';
 import { WeeklyHistoryList } from '../../components/attendance/WeeklyHistoryList';
 import { ManualAttendanceModal } from '../../components/attendance/ManualAttendanceModal';
@@ -20,12 +21,15 @@ export const HistoryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') === 'weekly' ? 'weekly' : 'daily';
 
+  const [selectedInternshipId, setSelectedInternshipId] = useState<string>('');
+  const { data: internships = [] } = useInternships();
+
   const {
     data: history = [],
     isLoading,
     isFetching,
     refetch: fetchHistory,
-  } = useAttendanceHistory();
+  } = useAttendanceHistory(selectedInternshipId || undefined);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -258,21 +262,55 @@ export const HistoryPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Search box */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: '340px' }}>
-            <Search
-              size={18}
-              color="var(--text-light)"
-              style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-            />
-            <input
-              type="text"
-              className="form-input"
-              style={{ paddingLeft: '38px' }}
-              placeholder={activeTab === 'weekly' ? 'Search by week date or notes...' : 'Search by date (YYYY-MM-DD) or notes...'}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          {/* Controls: Internship Selector & Search box */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Briefcase size={16} color="var(--text-secondary)" />
+              <select
+                value={selectedInternshipId}
+                onChange={(e) => {
+                  setSelectedIds(new Set());
+                  setSelectedInternshipId(e.target.value);
+                }}
+                className="form-input"
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-pill)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-main)',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  maxWidth: '220px',
+                }}
+              >
+                <option value="">Active Internship</option>
+                <option value="all">All Internships Combined</option>
+                {internships.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.title} {i.companyName ? `(${i.companyName})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search box */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
+              <Search
+                size={18}
+                color="var(--text-light)"
+                style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+              />
+              <input
+                type="text"
+                className="form-input"
+                style={{ paddingLeft: '38px' }}
+                placeholder={activeTab === 'weekly' ? 'Search by week date or notes...' : 'Search by date (YYYY-MM-DD) or notes...'}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 

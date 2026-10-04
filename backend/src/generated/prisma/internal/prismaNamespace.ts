@@ -398,6 +398,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
+  Internship: 'Internship',
   PasswordResetToken: 'PasswordResetToken',
   Attendance: 'Attendance'
 } as const
@@ -415,7 +416,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "passwordResetToken" | "attendance"
+    modelProps: "user" | "internship" | "passwordResetToken" | "attendance"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -490,6 +491,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    Internship: {
+      payload: Prisma.$InternshipPayload<ExtArgs>
+      fields: Prisma.InternshipFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.InternshipFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.InternshipFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>
+        }
+        findFirst: {
+          args: Prisma.InternshipFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.InternshipFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>
+        }
+        findMany: {
+          args: Prisma.InternshipFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>[]
+        }
+        create: {
+          args: Prisma.InternshipCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>
+        }
+        createMany: {
+          args: Prisma.InternshipCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.InternshipCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>[]
+        }
+        delete: {
+          args: Prisma.InternshipDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>
+        }
+        update: {
+          args: Prisma.InternshipUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>
+        }
+        deleteMany: {
+          args: Prisma.InternshipDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.InternshipUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.InternshipUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>[]
+        }
+        upsert: {
+          args: Prisma.InternshipUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InternshipPayload>
+        }
+        aggregate: {
+          args: Prisma.InternshipAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateInternship>
+        }
+        groupBy: {
+          args: Prisma.InternshipGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InternshipGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.InternshipCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InternshipCountAggregateOutputType> | number
         }
       }
     }
@@ -686,11 +761,28 @@ export const UserScalarFieldEnum = {
   passwordHash: 'passwordHash',
   name: 'name',
   requiredHours: 'requiredHours',
+  activeInternshipId: 'activeInternshipId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const InternshipScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  title: 'title',
+  companyName: 'companyName',
+  requiredHours: 'requiredHours',
+  status: 'status',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InternshipScalarFieldEnum = (typeof InternshipScalarFieldEnum)[keyof typeof InternshipScalarFieldEnum]
 
 
 export const PasswordResetTokenScalarFieldEnum = {
@@ -707,6 +799,7 @@ export type PasswordResetTokenScalarFieldEnum = (typeof PasswordResetTokenScalar
 export const AttendanceScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  internshipId: 'internshipId',
   date: 'date',
   clockIn: 'clockIn',
   clockOut: 'clockOut',
@@ -958,6 +1051,7 @@ export interface PrismaClientOptionsWithAdapter extends PrismaClientBaseOptions 
 export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaClientOptionsWithAdapter
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
+  internship?: Prisma.InternshipOmit
   passwordResetToken?: Prisma.PasswordResetTokenOmit
   attendance?: Prisma.AttendanceOmit
 }

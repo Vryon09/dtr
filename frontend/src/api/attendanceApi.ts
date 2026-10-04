@@ -13,19 +13,22 @@ import type {
 } from '../types/attendance';
 
 export const attendanceApi = {
-  getToday: () =>
+  getToday: (internshipId?: string) =>
     apiClient<{ success: boolean; data: TodayAttendanceResponse }>('/attendance/today', {
       method: 'GET',
+      params: internshipId ? { internshipId } : undefined,
     }),
 
-  getSummary: () =>
+  getSummary: (internshipId?: string) =>
     apiClient<{ success: boolean; data: AttendanceSummaryResponse }>('/attendance/summary', {
       method: 'GET',
+      params: internshipId ? { internshipId } : undefined,
     }),
 
-  getHistory: () =>
+  getHistory: (internshipId?: string) =>
     apiClient<{ success: boolean; data: AttendanceRecord[] }>('/attendance', {
       method: 'GET',
+      params: internshipId ? { internshipId } : undefined,
     }),
 
   clockIn: (payload?: ClockActionPayload) =>

@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
+import internshipRoutes from "./routes/internshipRoutes.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/internships", internshipRoutes);
 
 // Test route
 app.get("/api/health", (_req, res) => {

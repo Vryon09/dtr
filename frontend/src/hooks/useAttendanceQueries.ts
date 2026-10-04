@@ -9,31 +9,31 @@ import type {
   UpdateAttendancePayload,
 } from '../types/attendance';
 
-export function useAttendanceToday() {
+export function useAttendanceToday(internshipId?: string) {
   return useQuery({
-    queryKey: attendanceKeys.today(),
+    queryKey: [...attendanceKeys.today(), internshipId ?? 'active'],
     queryFn: async () => {
-      const res = await attendanceApi.getToday();
+      const res = await attendanceApi.getToday(internshipId);
       return res.data;
     },
   });
 }
 
-export function useAttendanceSummary() {
+export function useAttendanceSummary(internshipId?: string) {
   return useQuery({
-    queryKey: attendanceKeys.summary(),
+    queryKey: [...attendanceKeys.summary(), internshipId ?? 'active'],
     queryFn: async () => {
-      const res = await attendanceApi.getSummary();
+      const res = await attendanceApi.getSummary(internshipId);
       return res.data;
     },
   });
 }
 
-export function useAttendanceHistory() {
+export function useAttendanceHistory(internshipId?: string) {
   return useQuery({
-    queryKey: attendanceKeys.history(),
+    queryKey: [...attendanceKeys.history(), internshipId ?? 'active'],
     queryFn: async () => {
-      const res = await attendanceApi.getHistory();
+      const res = await attendanceApi.getHistory(internshipId);
       return res.data || [];
     },
   });
