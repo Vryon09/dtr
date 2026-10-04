@@ -1,4 +1,5 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 
 interface SendPasswordResetOptions {
   to: string;
@@ -6,15 +7,23 @@ interface SendPasswordResetOptions {
   resetUrl: string;
 }
 
-let resendClient: Resend | null = null;
+let mailTransporter: Transporter | null = null;
 
-function getResendClient(): Resend | null {
-  if (resendClient) return resendClient;
+function getTransporter(): Transporter | null {
+  if (mailTransporter) return mailTransporter;
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (apiKey) {
-    resendClient = new Resend(apiKey);
-    return resendClient;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (user && pass) {
+    mailTransporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user,
+        pass,
+      },
+    });
+    return mailTransporter;
   }
 
   return null;
@@ -25,7 +34,7 @@ export async function sendPasswordResetEmail({
   name,
   resetUrl,
 }: SendPasswordResetOptions): Promise<void> {
-  const resend = getResendClient();
+  const transporter = getTransporter();
   const recipientName = name ? ` ${name}` : "";
 
   const subject = "Reset your DTR password";
@@ -63,7 +72,7 @@ export async function sendPasswordResetEmail({
 
   const textContent = `Hi${recipientName},\n\nWe received a request to reset your password for your DTR account.\n\nClick the link below to set a new password (valid for 1 hour):\n${resetUrl}\n\nIf you did not make this request, you can safely ignore this email.`;
 
-  if (!resend) {
+  if (!transporter) {
     console.log("=================================================");
     console.log(" [DEV EMAIL] Password Reset Link Generated:");
     console.log(` To: ${to}`);
@@ -72,22 +81,17 @@ export async function sendPasswordResetEmail({
     return;
   }
 
-  const from = process.env.EMAIL_FROM || "DTR Support <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM || `DTR Support <${process.env.SMTP_USER}>`;
 
-  console.log(`[Email] Dispatching password reset email to ${to} via Resend HTTPS API...`);
+  console.log(`[Email] Dispatching password reset email to ${to} via Gmail SMTP...`);
 
-  const response = await resend.emails.send({
+  const info = await transporter.sendMail({
     from,
-    to: [to],
+    to,
     subject,
     text: textContent,
     html: htmlContent,
   });
 
-  if (response.error) {
-    console.error(`[Email] Resend API Error:`, response.error);
-    throw new Error(response.error.message || "Failed to send reset email");
-  }
-
-  console.log(`[Email] Email sent successfully via Resend! ID: ${response.data?.id}`);
+  console.log(`[Email] Email sent successfully via Gmail SMTP! MessageId: ${info.messageId}`);
 }
