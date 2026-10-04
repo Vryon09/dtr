@@ -161,3 +161,40 @@ export const batchDeleteAttendanceSchema = z.object({
 
 export type BatchDeleteAttendanceInput = z.infer<typeof batchDeleteAttendanceSchema>;
 
+const isoNullable = (message: string) =>
+  z
+    .string()
+    .nullable()
+    .optional()
+    .refine((val) => val === null || val === undefined || !isNaN(Date.parse(val)), {
+      message,
+    });
+
+export const batchUpdateAttendanceSchema = z.object({
+  updates: z
+    .array(
+      z.object({
+        id: z.string().min(1, "ID cannot be empty"),
+        clockIn: z
+          .string()
+          .refine((val) => !isNaN(Date.parse(val)), {
+            message: "Valid clock in time is required",
+          })
+          .optional(),
+        clockOut: isoNullable("Valid clock out time is required"),
+        breakStart: isoNullable("Valid break start time is required"),
+        breakEnd: isoNullable("Valid break end time is required"),
+        notes: z
+          .string()
+          .trim()
+          .max(500, "Notes must not exceed 500 characters")
+          .nullable()
+          .optional(),
+      })
+    )
+    .min(1, "At least one update must be provided")
+    .max(200, "Cannot update more than 200 records at once"),
+});
+
+export type BatchUpdateAttendanceInput = z.infer<typeof batchUpdateAttendanceSchema>;
+

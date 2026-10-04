@@ -5,6 +5,7 @@ import {
   CreateManualAttendanceInput,
   UpdateAttendanceInput,
   BatchDeleteAttendanceInput,
+  BatchUpdateAttendanceInput,
 } from "../schemas/attendanceSchemas.js";
 
 export async function clockIn(req: Request, res: Response): Promise<void> {
@@ -160,6 +161,24 @@ export async function batchDeleteAttendance(req: Request, res: Response): Promis
       success: true,
       count: result.count,
       message: `Successfully deleted ${result.count} attendance ${result.count === 1 ? 'record' : 'records'}`,
+    });
+  } catch (err) {
+    const e = err as Error & { statusCode?: number };
+    res
+      .status(e.statusCode ?? 500)
+      .json({ success: false, message: e.message });
+  }
+}
+
+export async function batchUpdateAttendance(req: Request, res: Response): Promise<void> {
+  try {
+    const { updates } = req.body as BatchUpdateAttendanceInput;
+    const data = await attendanceService.batchUpdateAttendance(req.user!.id, updates);
+    res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+      message: `Successfully updated ${data.length} attendance ${data.length === 1 ? 'record' : 'records'}`,
     });
   } catch (err) {
     const e = err as Error & { statusCode?: number };

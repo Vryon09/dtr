@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { attendanceApi } from '../api/attendanceApi';
 import { attendanceKeys } from './queryKeys';
 import type {
+  BatchUpdateAttendancePayload,
   BulkImportPayload,
   ClockActionPayload,
   CreateManualAttendancePayload,
@@ -121,6 +122,18 @@ export function useBatchDeleteAttendanceMutation() {
 
   return useMutation({
     mutationFn: (ids: string[]) => attendanceApi.batchDeleteAttendance(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
+    },
+  });
+}
+
+export function useBatchUpdateAttendanceMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: BatchUpdateAttendancePayload) =>
+      attendanceApi.batchUpdateAttendance(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
     },

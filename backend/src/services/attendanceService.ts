@@ -446,6 +446,60 @@ export async function createManual(
   return formatAttendance(attendance);
 }
 
+type HttpError = Error & { statusCode: number };
+
+function httpError(message: string, statusCode: number): HttpError {
+  const err = new Error(message) as HttpError;
+  err.statusCode = statusCode;
+  return err;
+}
+
+interface AttendanceTimeChanges {
+  clockIn?: string;
+  clockOut?: string | null;
+  breakStart?: string | null;
+  breakEnd?: string | null;
+}
+
+/**
+ * Merges requested time changes onto an existing record.
+ * `undefined` keeps the current value, `null` clears it.
+ * Throws a 400 HttpError when the merged result is invalid.
+ */
+function mergeAttendanceTimes(
+  record: {
+    clockIn: Date;
+    clockOut: Date | null;
+    breakStart: Date | null;
+    breakEnd: Date | null;
+  },
+  data: AttendanceTimeChanges,
+  errorPrefix = ""
+) {
+  const pick = (value: string | null | undefined, current: Date | null) =>
+    value !== undefined ? (value ? new Date(value) : null) : current;
+
+  const finalClockIn = data.clockIn ? new Date(data.clockIn) : record.clockIn;
+  const finalClockOut = pick(data.clockOut, record.clockOut);
+  const finalBreakStart = pick(data.breakStart, record.breakStart);
+  const finalBreakEnd = pick(data.breakEnd, record.breakEnd);
+
+  if (finalClockOut && finalClockOut <= finalClockIn) {
+    throw httpError(`${errorPrefix}Clock out time must be later than clock in time`, 400);
+  }
+
+  if (finalBreakStart && finalBreakEnd && finalBreakEnd <= finalBreakStart) {
+    throw httpError(`${errorPrefix}Break end time must be later than break start time`, 400);
+  }
+
+  let finalBreakMinutes = 0;
+  if (finalBreakStart && finalBreakEnd) {
+    finalBreakMinutes = Math.round((finalBreakEnd.getTime() - finalBreakStart.getTime()) / (1000 * 60));
+  }
+
+  return { finalClockIn, finalClockOut, finalBreakStart, finalBreakEnd, finalBreakMinutes };
+}
+
 export async function updateAttendance(
   userId: string,
   id: string,
@@ -492,43 +546,13 @@ export async function updateAttendance(
     }
   }
 
-  const finalClockIn = data.clockIn ? new Date(data.clockIn) : record.clockIn;
-  const finalClockOut =
-    data.clockOut !== undefined
-      ? data.clockOut
-        ? new Date(data.clockOut)
-        : null
-      : record.clockOut;
-
-  const finalBreakStart =
-    data.breakStart !== undefined
-      ? data.breakStart
-        ? new Date(data.breakStart)
-        : null
-      : record.breakStart;
-
-  const finalBreakEnd =
-    data.breakEnd !== undefined
-      ? data.breakEnd
-        ? new Date(data.breakEnd)
-        : null
-      : record.breakEnd;
-
-  if (finalClockOut && finalClockOut <= finalClockIn) {
-    const err = new Error("Clock out time must be later than clock in time") as Error & {
-      statusCode: number;
-    };
-    err.statusCode = 400;
-    throw err;
-  }
-
-  if (finalBreakStart && finalBreakEnd && finalBreakEnd <= finalBreakStart) {
-    const err = new Error("Break end time must be later than break start time") as Error & {
-      statusCode: number;
-    };
-    err.statusCode = 400;
-    throw err;
-  }
+  const {
+    finalClockIn,
+    finalClockOut,
+    finalBreakStart,
+    finalBreakEnd,
+    finalBreakMinutes,
+  } = mergeAttendanceTimes(record, data);
 
   if (!finalClockOut && record.clockOut !== null) {
     const active = await prisma.attendance.findFirst({
@@ -541,11 +565,6 @@ export async function updateAttendance(
       err.statusCode = 400;
       throw err;
     }
-  }
-
-  let finalBreakMinutes = 0;
-  if (finalBreakStart && finalBreakEnd) {
-    finalBreakMinutes = Math.round((finalBreakEnd.getTime() - finalBreakStart.getTime()) / (1000 * 60));
   }
 
   const updated = await prisma.attendance.update({
@@ -597,5 +616,62 @@ export async function batchDeleteAttendance(
   });
 
   return { count: result.count };
+}
+
+export async function batchUpdateAttendance(
+  userId: string,
+  updates: Array<AttendanceTimeChanges & { id: string; notes?: string | null }>
+): Promise<FormattedAttendance[]> {
+  const ids = updates.map((u) => u.id);
+  if (new Set(ids).size !== ids.length) {
+    throw httpError("Duplicate attendance IDs in batch update", 400);
+  }
+
+  const records = await prisma.attendance.findMany({
+    where: { id: { in: ids }, userId },
+  });
+
+  if (records.length !== ids.length) {
+    throw httpError("One or more attendance records were not found", 404);
+  }
+
+  const recordMap = new Map(records.map((r) => [r.id, r]));
+
+  // Validate everything up front so the batch is all-or-nothing
+  const prepared = updates.map((u) => {
+    const record = recordMap.get(u.id)!;
+    const prefix = `${record.date.toISOString().slice(0, 10)}: `;
+    const merged = mergeAttendanceTimes(record, u, prefix);
+    return { update: u, record, merged };
+  });
+
+  // Only one open (no clock-out) session may exist per user
+  const openInBatch = prepared.filter((p) => !p.merged.finalClockOut);
+  if (openInBatch.length > 0) {
+    const openOutside = await prisma.attendance.count({
+      where: { userId, clockOut: null, id: { notIn: ids } },
+    });
+    if (openInBatch.length + openOutside > 1) {
+      throw httpError("User already has an active clock-in", 400);
+    }
+  }
+
+  const updated = await prisma.$transaction(
+    prepared.map(({ update, record, merged }) =>
+      prisma.attendance.update({
+        where: { id: record.id },
+        data: {
+          clockIn: merged.finalClockIn,
+          clockOut: merged.finalClockOut,
+          breakStart: merged.finalBreakStart,
+          breakEnd: merged.finalBreakEnd,
+          breakMinutes: merged.finalBreakMinutes,
+          notes: update.notes !== undefined ? update.notes : record.notes,
+        },
+      })
+    )
+  );
+
+  return updated.map(formatAttendance);
 }
 

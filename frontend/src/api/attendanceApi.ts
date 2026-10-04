@@ -2,6 +2,7 @@ import { apiClient, axiosInstance } from './client';
 import type {
   AttendanceRecord,
   AttendanceSummaryResponse,
+  BatchUpdateAttendancePayload,
   BulkImportPayload,
   BulkImportResult,
   ClockActionPayload,
@@ -71,6 +72,15 @@ export const attendanceApi = {
       method: 'POST',
       data: { ids },
     }),
+
+  batchUpdateAttendance: (payload: BatchUpdateAttendancePayload) =>
+    apiClient<{ success: boolean; count: number; data: AttendanceRecord[]; message?: string }>(
+      '/attendance/batch-update',
+      {
+        method: 'POST',
+        data: payload,
+      }
+    ),
 
 
   parseDtr: async (formData: FormData) => {

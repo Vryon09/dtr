@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, X, CheckSquare } from 'lucide-react';
+import { Trash2, X, CheckSquare, Pencil } from 'lucide-react';
 import { formatHours } from '../../utils/format';
 
 interface BulkActionBarProps {
@@ -7,6 +7,7 @@ interface BulkActionBarProps {
   totalSelectedHours?: number;
   onClearSelection: () => void;
   onDeleteSelected: () => void;
+  onEditSelected?: () => void;
 }
 
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
@@ -14,6 +15,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   totalSelectedHours,
   onClearSelection,
   onDeleteSelected,
+  onEditSelected,
 }) => {
   if (selectedCount === 0) return null;
 
@@ -91,6 +93,39 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {onEditSelected && (
+          <button
+            id="bulkEditSelectedButton"
+            type="button"
+            onClick={onEditSelected}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--bg-card)',
+              color: 'var(--primary)',
+              border: '1px solid rgba(79, 70, 229, 0.35)',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'var(--transition)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--primary)';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--bg-card)';
+              e.currentTarget.style.color = 'var(--primary)';
+            }}
+          >
+            <Pencil size={15} />
+            <span>Edit Selected ({selectedCount})</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onDeleteSelected}

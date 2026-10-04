@@ -49,6 +49,14 @@ export interface UpdateAttendancePayload {
   notes?: string | null;
 }
 
+export interface BatchUpdateAttendanceItem extends Omit<UpdateAttendancePayload, 'date'> {
+  id: string;
+}
+
+export interface BatchUpdateAttendancePayload {
+  updates: BatchUpdateAttendanceItem[];
+}
+
 export interface WeeklyDayStat {
   dayName: string; // e.g. "Mon", "Tue"
   dateString: string; // "YYYY-MM-DD"

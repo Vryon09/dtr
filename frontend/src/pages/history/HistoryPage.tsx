@@ -8,6 +8,7 @@ import { ManualAttendanceModal } from '../../components/attendance/ManualAttenda
 import { EditAttendanceModal } from '../../components/attendance/EditAttendanceModal';
 import { DeleteAttendanceModal } from '../../components/attendance/DeleteAttendanceModal';
 import { BulkDeleteAttendanceModal } from '../../components/attendance/BulkDeleteAttendanceModal';
+import { BulkEditAttendanceModal } from '../../components/attendance/BulkEditAttendanceModal';
 import { BulkActionBar } from '../../components/attendance/BulkActionBar';
 import { UploadDtrModal } from '../../components/attendance/UploadDtrModal';
 import { Card } from '../../components/common/Card';
@@ -34,6 +35,7 @@ export const HistoryPage: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<AttendanceRecord | null>(null);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState<boolean>(false);
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState<boolean>(false);
   const [isUploadDtrModalOpen, setIsUploadDtrModalOpen] = useState<boolean>(false);
 
   const handleTabChange = (tab: 'daily' | 'weekly') => {
@@ -281,6 +283,7 @@ export const HistoryPage: React.FC = () => {
             totalSelectedHours={totalSelectedHours}
             onClearSelection={() => setSelectedIds(new Set())}
             onDeleteSelected={() => setIsBulkDeleteModalOpen(true)}
+            onEditSelected={() => setIsBulkEditModalOpen(true)}
           />
         )}
 
@@ -335,6 +338,13 @@ export const HistoryPage: React.FC = () => {
         records={selectedRecords}
         isOpen={isBulkDeleteModalOpen}
         onClose={() => setIsBulkDeleteModalOpen(false)}
+        onSuccess={() => setSelectedIds(new Set())}
+      />
+
+      <BulkEditAttendanceModal
+        records={selectedRecords}
+        isOpen={isBulkEditModalOpen}
+        onClose={() => setIsBulkEditModalOpen(false)}
         onSuccess={() => setSelectedIds(new Set())}
       />
 

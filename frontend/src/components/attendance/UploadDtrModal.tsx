@@ -11,6 +11,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Sparkles,
+  Wand2,
+  Coffee,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { useParseDtrMutation, useBulkImportMutation } from '../../hooks/useAttendanceQueries';
@@ -40,6 +42,38 @@ function getMonthName(month: number) {
   return MONTH_NAMES[month - 1] ?? '';
 }
 
+const toMinutes = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/** Re-derives row status after edits (existing records never change). */
+function deriveStatus(entry: EditableEntry): EditableEntry['status'] {
+  if (entry.status === 'exists') return 'exists';
+  return entry.clockOut ? 'new' : 'incomplete';
+}
+
+/** Returns a human-readable validation error for a row, or null if valid. */
+function getRowError(entry: EditableEntry): string | null {
+  if (entry.status === 'exists' || !entry.clockIn) return null;
+  const inM = toMinutes(entry.clockIn);
+  const outM = entry.clockOut ? toMinutes(entry.clockOut) : null;
+
+  if (outM !== null && outM <= inM) return 'Clock out must be after clock in';
+
+  const hasBs = Boolean(entry.breakStartTime);
+  const hasBe = Boolean(entry.breakEndTime);
+  if (hasBs !== hasBe) return 'Break needs both start and end';
+  if (hasBs && hasBe) {
+    const bs = toMinutes(entry.breakStartTime!);
+    const be = toMinutes(entry.breakEndTime!);
+    if (be <= bs) return 'Break end must be after break start';
+    if (bs < inM) return 'Break starts before clock in';
+    if (outM !== null && be > outM) return 'Break ends after clock out';
+  }
+  return null;
+}
+
 export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
   isOpen,
   onClose,
@@ -62,6 +96,12 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
   // Results
   const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
 
+  // Bulk edit (review step)
+  const [bulkClockIn, setBulkClockIn] = useState('');
+  const [bulkClockOut, setBulkClockOut] = useState('');
+  const [bulkBreakStart, setBulkBreakStart] = useState('');
+  const [bulkBreakEnd, setBulkBreakEnd] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const parseMutation = useParseDtrMutation();
   const importMutation = useBulkImportMutation();
@@ -78,6 +118,10 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
       setPayYear(new Date().getFullYear());
       setEntries([]);
       setImportResult(null);
+      setBulkClockIn('');
+      setBulkClockOut('');
+      setBulkBreakStart('');
+      setBulkBreakEnd('');
     }
   }, [isOpen]);
 
@@ -154,8 +198,8 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
   };
 
   const handleImport = async () => {
-    const selected = entries.filter((e) => e.selected && e.clockIn);
-    if (selected.length === 0) return;
+    const selected = entries.filter((e) => e.selected && e.clockIn && !getRowError(e));
+    if (selected.length === 0 || invalidSelectedCount > 0) return;
 
     setErrorMessage(null);
 
@@ -187,19 +231,33 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
     );
   };
 
-  const toggleAll = () => {
-    const selectableEntries = entries.filter((e) => e.status !== 'exists');
-    const allSelected = selectableEntries.every((e) => e.selected);
+  const selectableEntries = entries.filter((e) => e.status !== 'exists');
+  const isAllSelected = selectableEntries.length > 0 && selectableEntries.every((e) => e.selected);
+  const isIndeterminate = selectableEntries.some((e) => e.selected) && !isAllSelected;
+
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
+
+  const handleSelectAll = (checked: boolean) => {
     setEntries((prev) =>
       prev.map((e) =>
-        e.status !== 'exists' ? { ...e, selected: !allSelected } : e
+        e.status !== 'exists' ? { ...e, selected: checked } : e
       )
     );
   };
 
   const updateEntryTime = (day: number, field: keyof ProcessedDtrEntry, value: string) => {
     setEntries((prev) =>
-      prev.map((e) => (e.day === day ? { ...e, [field]: value || null } : e))
+      prev.map((e) => {
+        if (e.day !== day) return e;
+        const next = { ...e, [field]: value || null };
+        return { ...next, status: deriveStatus(next) };
+      })
     );
   };
 
@@ -207,11 +265,51 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
     setEntries((prev) => prev.filter((e) => e.day !== day));
   };
 
-  const selectedCount = entries.filter((e) => e.selected && e.clockIn).length;
+  // Bulk edit helpers
+  const bulkTargetCount = entries.filter((e) => e.selected && e.status !== 'exists').length;
+  const bulkBreakHalfFilled = Boolean(bulkBreakStart) !== Boolean(bulkBreakEnd);
+  const bulkHasValues = Boolean(bulkClockIn || bulkClockOut || (bulkBreakStart && bulkBreakEnd));
+  const canApplyBulk = bulkTargetCount > 0 && bulkHasValues && !bulkBreakHalfFilled;
+
+  const applyBulk = () => {
+    if (!canApplyBulk) return;
+    setEntries((prev) =>
+      prev.map((e) => {
+        if (!e.selected || e.status === 'exists') return e;
+        const next: EditableEntry = {
+          ...e,
+          ...(bulkClockIn ? { clockIn: bulkClockIn } : {}),
+          ...(bulkClockOut ? { clockOut: bulkClockOut } : {}),
+          ...(bulkBreakStart && bulkBreakEnd
+            ? { breakStartTime: bulkBreakStart, breakEndTime: bulkBreakEnd }
+            : {}),
+        };
+        return { ...next, status: deriveStatus(next) };
+      })
+    );
+  };
+
+  const clearBulkBreak = () => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.selected && e.status !== 'exists'
+          ? { ...e, breakStartTime: null, breakEndTime: null }
+          : e
+      )
+    );
+  };
+
+  const isImportable = (e: EditableEntry) => e.selected && Boolean(e.clockIn) && !getRowError(e);
+  const selectedCount = entries.filter(isImportable).length;
+  const invalidSelectedCount = entries.filter(
+    (e) => e.selected && e.clockIn && getRowError(e)
+  ).length;
+  const importDisabled =
+    selectedCount === 0 || invalidSelectedCount > 0 || importMutation.isPending;
 
   // Calculate total estimated hours for selected entries
   const selectedHours = entries
-    .filter((e) => e.selected && e.clockIn && e.clockOut)
+    .filter((e) => isImportable(e) && e.clockOut)
     .reduce((sum, e) => {
       const [inH, inM] = e.clockIn!.split(':').map(Number);
       const [outH, outM] = e.clockOut!.split(':').map(Number);
@@ -234,7 +332,7 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
         : 'Import Results';
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={stepTitle} size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title={stepTitle} size={step === 'review' ? '2xl' : 'xl'}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {/* Step Indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
@@ -481,36 +579,151 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
         {/* ============ STEP 2: REVIEW ============ */}
         {step === 'review' && (
           <>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}
-            >
+            <div>
               <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                 {getMonthName(payMonth)} {payYear} · {entries.length} days extracted
               </p>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={toggleAll}
+            </div>
+
+            {/* Bulk Edit Toolbar */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                padding: '12px 14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'linear-gradient(135deg, var(--primary-light), var(--bg-subtle))',
+                border: '1px solid rgba(79, 70, 229, 0.2)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span
                   style={{
-                    fontSize: '0.75rem',
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)',
-                    cursor: 'pointer',
-                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.813rem',
+                    fontWeight: 700,
+                    color: 'var(--primary)',
                   }}
                 >
-                  Toggle All
-                </button>
+                  <Wand2 size={14} />
+                  Bulk edit selected rows
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                    · {bulkTargetCount} selected
+                  </span>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Leave a field blank to keep each row's value
+                </span>
               </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+                <label style={bulkLabelStyle}>
+                  Clock In
+                  <input
+                    id="dtrBulkClockIn"
+                    type="time"
+                    value={bulkClockIn}
+                    onChange={(e) => setBulkClockIn(e.target.value)}
+                    style={timeInputStyle}
+                  />
+                </label>
+                <label style={bulkLabelStyle}>
+                  Clock Out
+                  <input
+                    id="dtrBulkClockOut"
+                    type="time"
+                    value={bulkClockOut}
+                    onChange={(e) => setBulkClockOut(e.target.value)}
+                    style={timeInputStyle}
+                  />
+                </label>
+                <label style={bulkLabelStyle}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Coffee size={12} color="#b45309" /> Break
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      id="dtrBulkBreakStart"
+                      type="time"
+                      value={bulkBreakStart}
+                      onChange={(e) => setBulkBreakStart(e.target.value)}
+                      style={{
+                        ...timeInputStyle,
+                        borderColor: bulkBreakHalfFilled && !bulkBreakStart ? '#f87171' : undefined,
+                      }}
+                    />
+                    <span style={{ color: 'var(--text-muted)' }}>–</span>
+                    <input
+                      id="dtrBulkBreakEnd"
+                      type="time"
+                      value={bulkBreakEnd}
+                      onChange={(e) => setBulkBreakEnd(e.target.value)}
+                      style={{
+                        ...timeInputStyle,
+                        borderColor: bulkBreakHalfFilled && !bulkBreakEnd ? '#f87171' : undefined,
+                      }}
+                    />
+                  </span>
+                </label>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                  <button
+                    id="dtrBulkClearBreak"
+                    type="button"
+                    onClick={clearBulkBreak}
+                    disabled={bulkTargetCount === 0}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: bulkTargetCount === 0 ? 'var(--text-light)' : '#b45309',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: bulkTargetCount === 0 ? 'not-allowed' : 'pointer',
+                      padding: '6px 4px',
+                    }}
+                  >
+                    Clear break
+                  </button>
+                  <button
+                    id="dtrBulkApply"
+                    type="button"
+                    onClick={applyBulk}
+                    disabled={!canApplyBulk}
+                    className="btn btn-primary"
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      fontWeight: 600,
+                      fontSize: '0.813rem',
+                      opacity: canApplyBulk ? 1 : 0.5,
+                      cursor: canApplyBulk ? 'pointer' : 'not-allowed',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <Wand2 size={14} />
+                    Apply to {bulkTargetCount} selected
+                  </button>
+                </div>
+              </div>
+
+              {bulkBreakHalfFilled && (
+                <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontWeight: 500 }}>
+                  Enter both break start and end to apply a break.
+                </span>
+              )}
             </div>
 
             {/* Scrollable table */}
@@ -526,7 +739,7 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
               <table
                 style={{
                   width: '100%',
-                  minWidth: '600px',
+                  minWidth: '760px',
                   borderCollapse: 'collapse',
                   fontSize: '0.813rem',
                 }}
@@ -540,23 +753,49 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
                       zIndex: 1,
                     }}
                   >
-                    <th style={{ ...thStyle, width: '40px', textAlign: 'center' }}></th>
+                    <th style={{ ...thStyle, width: '40px', textAlign: 'center', padding: '10px 8px' }}>
+                      <input
+                        type="checkbox"
+                        ref={selectAllCheckboxRef}
+                        checked={isAllSelected}
+                        disabled={selectableEntries.length === 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        aria-label="Select all entries"
+                        style={{
+                          cursor: selectableEntries.length === 0 ? 'not-allowed' : 'pointer',
+                          width: '16px',
+                          height: '16px',
+                          accentColor: 'var(--primary)',
+                        }}
+                      />
+                    </th>
                     <th style={{ ...thStyle, width: '90px' }}>Day</th>
-                    <th style={{ ...thStyle, width: '130px' }}>Clock In</th>
-                    <th style={{ ...thStyle, width: '130px' }}>Clock Out</th>
-                    <th style={{ ...thStyle, width: '120px' }}>Break</th>
-                    <th style={{ ...thStyle, width: '100px' }}>Status</th>
+                    <th style={{ ...thStyle, width: '120px' }}>Clock In</th>
+                    <th style={{ ...thStyle, width: '120px' }}>Clock Out</th>
+                    <th style={{ ...thStyle, width: '230px' }}>Break</th>
+                    <th style={{ ...thStyle, width: '120px' }}>Status</th>
                     <th style={{ ...thStyle, width: '44px', textAlign: 'center' }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {entries.map((entry) => (
+                  {entries.map((entry) => {
+                    const rowError = getRowError(entry);
+                    const editable = entry.status !== 'exists';
+                    const inputStyle = rowError
+                      ? { ...timeInputStyle, borderColor: '#f87171' }
+                      : timeInputStyle;
+                    return (
                     <tr
                       key={entry.day}
+                      title={rowError ?? undefined}
                       style={{
                         borderBottom: '1px solid var(--border-subtle)',
                         opacity: entry.status === 'exists' ? 0.5 : 1,
-                        background: entry.selected ? 'var(--primary-light)' : 'transparent',
+                        background: rowError
+                          ? '#fef2f2'
+                          : entry.selected
+                            ? 'var(--primary-light)'
+                            : 'transparent',
                         transition: 'background 0.15s',
                       }}
                     >
@@ -566,7 +805,13 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
                           checked={entry.selected}
                           disabled={entry.status === 'exists'}
                           onChange={() => toggleEntry(entry.day)}
-                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          aria-label={`Select entry for day ${entry.day}`}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            cursor: entry.status === 'exists' ? 'not-allowed' : 'pointer',
+                            accentColor: 'var(--primary)',
+                          }}
                         />
                       </td>
                       <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -579,8 +824,8 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
                           onChange={(e) =>
                             updateEntryTime(entry.day, 'clockIn', e.target.value)
                           }
-                          disabled={entry.status === 'exists'}
-                          style={timeInputStyle}
+                          disabled={!editable}
+                          style={inputStyle}
                         />
                       </td>
                       <td style={tdStyle}>
@@ -590,21 +835,55 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
                           onChange={(e) =>
                             updateEntryTime(entry.day, 'clockOut', e.target.value)
                           }
-                          disabled={entry.status === 'exists'}
-                          style={timeInputStyle}
+                          disabled={!editable}
+                          style={inputStyle}
                         />
                       </td>
                       <td style={tdStyle}>
-                        {entry.breakStartTime && entry.breakEndTime ? (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.813rem', whiteSpace: 'nowrap' }}>
-                            {entry.breakStartTime} – {entry.breakEndTime}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-light)', fontSize: '0.813rem' }}>—</span>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input
+                            type="time"
+                            aria-label="Break start"
+                            value={entry.breakStartTime || ''}
+                            onChange={(e) =>
+                              updateEntryTime(entry.day, 'breakStartTime', e.target.value)
+                            }
+                            disabled={!editable}
+                            style={inputStyle}
+                          />
+                          <span style={{ color: 'var(--text-light)' }}>–</span>
+                          <input
+                            type="time"
+                            aria-label="Break end"
+                            value={entry.breakEndTime || ''}
+                            onChange={(e) =>
+                              updateEntryTime(entry.day, 'breakEndTime', e.target.value)
+                            }
+                            disabled={!editable}
+                            style={inputStyle}
+                          />
+                        </div>
                       </td>
                       <td style={tdStyle}>
-                        {entry.status === 'exists' ? (
+                        {rowError ? (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              flexDirection: 'column',
+                              gap: '2px',
+                              fontSize: '0.75rem',
+                              color: '#b91c1c',
+                              fontWeight: 600,
+                            }}
+                          >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                              <XCircle size={12} /> Invalid
+                            </span>
+                            <span style={{ fontWeight: 500, fontSize: '0.688rem', lineHeight: 1.3 }}>
+                              {rowError}
+                            </span>
+                          </span>
+                        ) : entry.status === 'exists' ? (
                           <span
                             style={{
                               display: 'inline-flex',
@@ -671,7 +950,8 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -700,6 +980,27 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
               </div>
             )}
 
+            {invalidSelectedCount > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  fontSize: '0.813rem',
+                  fontWeight: 600,
+                }}
+              >
+                <AlertCircle size={16} />
+                Fix {invalidSelectedCount} invalid row{invalidSelectedCount !== 1 ? 's' : ''} (or deselect
+                {invalidSelectedCount !== 1 ? ' them' : ' it'}) before importing.
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginTop: '4px' }}>
               <button
@@ -725,15 +1026,15 @@ export const UploadDtrModal: React.FC<UploadDtrModalProps> = ({
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={selectedCount === 0 || importMutation.isPending}
+                disabled={importDisabled}
                 className="btn btn-primary"
                 style={{
                   padding: '10px 20px',
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 600,
                   fontSize: '0.875rem',
-                  opacity: selectedCount === 0 || importMutation.isPending ? 0.5 : 1,
-                  cursor: selectedCount === 0 || importMutation.isPending ? 'not-allowed' : 'pointer',
+                  opacity: importDisabled ? 0.5 : 1,
+                  cursor: importDisabled ? 'not-allowed' : 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
@@ -943,4 +1244,15 @@ const timeInputStyle: React.CSSProperties = {
   color: 'var(--text-main)',
   fontSize: '0.813rem',
   fontFamily: 'inherit',
+};
+
+const bulkLabelStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+  fontSize: '0.688rem',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.03em',
+  color: 'var(--text-muted)',
 };
