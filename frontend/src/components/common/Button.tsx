@@ -1,10 +1,12 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-export type ButtonVariant = 'primary' | 'success' | 'danger' | 'outline';
+export type ButtonVariant = 'primary' | 'success' | 'danger' | 'outline' | 'outline-danger';
+export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
+  size?: ButtonSize;
   isLoading?: boolean;
   icon?: React.ReactNode;
   children: React.ReactNode;
@@ -12,6 +14,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
+  size = 'md',
   isLoading = false,
   icon,
   children,
@@ -19,9 +22,11 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
+  const sizeClass = size && size !== 'md' ? `btn-${size}` : '';
+
   return (
     <button
-      className={`btn btn-${variant} ${className}`}
+      className={`btn btn-${variant} ${sizeClass} ${className}`.trim()}
       disabled={disabled || isLoading}
       {...props}
     >

@@ -157,10 +157,10 @@ export const SettingsPage: React.FC = () => {
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={() => setIsCreateModalOpen(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <Plus size={16} />
+            <Plus size={15} />
             <span>New Internship</span>
           </Button>
         </div>
@@ -189,6 +189,7 @@ export const SettingsPage: React.FC = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '12px',
+                    overflow: 'hidden',
                   }}
                 >
                   <div
@@ -200,9 +201,9 @@ export const SettingsPage: React.FC = () => {
                       gap: '12px',
                     }}
                   >
-                    <div>
+                    <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                        <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
                           {item.title}
                         </span>
                         {item.isActive && (
@@ -214,6 +215,7 @@ export const SettingsPage: React.FC = () => {
                               fontWeight: 700,
                               background: 'rgba(59, 130, 246, 0.15)',
                               color: 'var(--primary)',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             Active Tracking
@@ -229,6 +231,7 @@ export const SettingsPage: React.FC = () => {
                               ? 'rgba(16, 185, 129, 0.15)'
                               : 'rgba(100, 116, 139, 0.15)',
                             color: isCompleted ? 'var(--success)' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           {isCompleted ? 'Completed' : 'In Progress'}
@@ -236,7 +239,7 @@ export const SettingsPage: React.FC = () => {
                       </div>
 
                       {item.companyName && (
-                        <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
                           Company: <strong>{item.companyName}</strong>
                         </p>
                       )}
@@ -244,77 +247,111 @@ export const SettingsPage: React.FC = () => {
                       <div
                         style={{
                           display: 'flex',
+                          flexWrap: 'wrap',
                           alignItems: 'center',
-                          gap: '12px',
-                          fontSize: '0.825rem',
+                          gap: '6px 8px',
+                          fontSize: '0.8rem',
                           color: 'var(--text-secondary)',
-                          marginTop: '6px',
+                          marginTop: '8px',
                         }}
                       >
-                        <span>
-                          Target: <strong>{item.requiredHours} hrs</strong>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-main)',
+                          }}
+                        >
+                          Target: <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{item.requiredHours} hrs</strong>
                         </span>
-                        <span>•</span>
-                        <span>
-                          Rendered: <strong>{item.completedHours} hrs</strong>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-main)',
+                          }}
+                        >
+                          Rendered: <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{item.completedHours} hrs</strong>
                         </span>
-                        <span>•</span>
-                        <span>
-                          Remaining: <strong>{item.remainingHours} hrs</strong>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-main)',
+                          }}
+                        >
+                          Remaining: <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{item.remainingHours} hrs</strong>
                         </span>
-                        <span>•</span>
-                        <span>
-                          Progress: <strong>{item.progressPercentage}%</strong>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-main)',
+                          }}
+                        >
+                          Progress: <strong style={{ color: isCompleted ? 'var(--success)' : 'var(--primary)', fontWeight: 700 }}>{item.progressPercentage}%</strong>
                         </span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       {!item.isActive && (
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
                           onClick={() => handleSwitch(item.id)}
                           isLoading={switchMutation.isPending}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                         >
-                          <Check size={14} />
-                          <span>Set as Active</span>
+                          <Check size={13} />
+                          <span>Set Active</span>
                         </Button>
                       )}
 
                       <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         onClick={() => handleToggleStatus(item.id, item.status)}
                         isLoading={updateInternshipMutation.isPending}
                       >
-                        {isCompleted ? 'Mark Active' : 'Mark Completed'}
+                        <CheckCircle size={13} />
+                        <span>{isCompleted ? 'Mark Active' : 'Mark Completed'}</span>
                       </Button>
 
                       <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         onClick={() => setEditingInternship(item)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
-                        <Pencil size={14} />
-                        <span>Edit Details</span>
+                        <Pencil size={13} />
+                        <span>Edit</span>
                       </Button>
 
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="outline-danger"
+                        size="sm"
                         onClick={() => setDeletingInternship(item)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          color: 'var(--danger)',
-                          borderColor: 'rgba(239, 68, 68, 0.3)',
-                        }}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                         <span>Delete</span>
                       </Button>
                     </div>

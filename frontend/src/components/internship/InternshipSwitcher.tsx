@@ -72,9 +72,10 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
   if (isLoading || !active) {
     return (
       <div
+        className={`internship-switcher ${className}`}
         style={{
           padding: '6px 12px',
-          borderRadius: '8px',
+          borderRadius: '10px',
           background: 'var(--bg-card)',
           border: '1px solid var(--border-subtle)',
           fontSize: '0.85rem',
@@ -84,7 +85,6 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
           gap: '8px',
           ...style,
         }}
-        className={className}
       >
         <Briefcase size={16} />
         <span>Loading profiles...</span>
@@ -97,12 +97,13 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
   return (
     <div
       ref={dropdownRef}
-      style={{ position: 'relative', display: 'inline-block', ...style }}
-      className={className}
+      style={style}
+      className={`internship-switcher ${className}`}
     >
       {/* Trigger Button */}
       <button
         type="button"
+        className="internship-switcher-btn"
         onClick={() => setIsOpen((prev) => !prev)}
         style={{
           display: 'flex',
@@ -133,13 +134,15 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
               ? 'rgba(16, 185, 129, 0.15)'
               : 'rgba(59, 130, 246, 0.15)',
             color: isCompleted ? 'var(--success)' : 'var(--primary)',
+            flexShrink: 0,
           }}
         >
           <Briefcase size={14} />
         </div>
 
-        <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
+        <div className="internship-switcher-info" style={{ textAlign: 'left', lineHeight: 1.2, flex: 1, minWidth: 0 }}>
           <div
+            className="internship-switcher-title"
             style={{
               fontWeight: 600,
               fontSize: '0.85rem',
@@ -153,6 +156,7 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
           </div>
           {active.companyName && (
             <div
+              className="internship-switcher-company"
               style={{
                 fontSize: '0.72rem',
                 color: 'var(--text-secondary)',
@@ -179,6 +183,7 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
                 : 'rgba(59, 130, 246, 0.15)',
             color:
               active.status === 'COMPLETED' ? 'var(--success)' : 'var(--primary)',
+            flexShrink: 0,
           }}
         >
           {active.status === 'COMPLETED' ? 'Completed' : `${active.progressPercentage}%`}
@@ -190,6 +195,7 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
             color: 'var(--text-secondary)',
             transform: isOpen ? 'rotate(180deg)' : 'none',
             transition: 'transform 0.15s ease',
+            flexShrink: 0,
           }}
         />
       </button>
@@ -197,6 +203,7 @@ export const InternshipSwitcher: React.FC<InternshipSwitcherProps> = ({
       {/* Dropdown Menu */}
       {isOpen && (
         <div
+          className="internship-switcher-dropdown"
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
