@@ -1,6 +1,10 @@
 import https from "node:https";
-import nodemailer from "nodemailer";
-import type { Transporter } from "nodemailer";
+
+interface SendPasswordResetOptions {
+  to: string;
+  name?: string | null;
+  resetUrl: string;
+}
 
 function postJson(
   targetUrl: string,
@@ -17,7 +21,7 @@ function postJson(
         port: parsed.port || (parsed.protocol === "https:" ? 443 : 80),
         path: parsed.pathname + parsed.search,
         method: "POST",
-        family: 4, // Explicitly force IPv4 to avoid Render container IPv6 ETIMEDOUT
+        family: 4, // Explicitly force IPv4
         headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(postData),
@@ -35,7 +39,7 @@ function postJson(
 
     req.on("timeout", () => {
       req.destroy();
-      reject(new Error("Request timed out connecting to email proxy"));
+      reject(new Error("Request timed out connecting to email service"));
     });
 
     req.on("error", (err) => {
@@ -47,133 +51,59 @@ function postJson(
   });
 }
 
-interface SendPasswordResetOptions {
-  to: string;
-  name?: string | null;
-  resetUrl: string;
-}
-
-let mailTransporter: Transporter | null = null;
-
-function getTransporter(): Transporter | null {
-  if (mailTransporter) return mailTransporter;
-
-  const user = process.env.SMTP_USER;
-  const rawPass = process.env.SMTP_PASS;
-  const host = process.env.SMTP_HOST || "smtp.gmail.com";
-  const port = Number(process.env.SMTP_PORT) || 465;
-
-  if (user && rawPass) {
-    const pass = rawPass.replace(/\s+/g, "");
-    mailTransporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: {
-        user,
-        pass,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-    });
-    return mailTransporter;
-  }
-
-  return null;
-}
-
 export async function sendPasswordResetEmail({
   to,
   name,
   resetUrl,
 }: SendPasswordResetOptions): Promise<void> {
-  const proxyUrl =
-    process.env.EMAIL_PROXY_URL ||
-    (process.env.CLIENT_URL && process.env.CLIENT_URL.startsWith("https://")
-      ? `${process.env.CLIENT_URL}/.netlify/functions/send-email`
-      : null);
+  const serviceId = process.env.EMAILJS_SERVICE_ID;
+  const templateId = process.env.EMAILJS_TEMPLATE_ID;
+  const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+  const privateKey = process.env.EMAILJS_PRIVATE_KEY;
 
-  if (proxyUrl) {
-    console.log(
-      `[Email] Dispatching password reset email to ${to} via Netlify proxy (${proxyUrl})...`
-    );
-    const secret = process.env.EMAIL_PROXY_SECRET || process.env.JWT_SECRET;
-    const response = await postJson(proxyUrl, { to, name, resetUrl, secret });
-
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(
-        `Netlify email proxy failed (${response.status}): ${response.body}`
-      );
-    }
-
-    try {
-      const data = JSON.parse(response.body);
-      console.log(`[Email] Email sent successfully via Netlify proxy!`, data);
-    } catch {
-      console.log(`[Email] Email sent successfully via Netlify proxy!`, response.body);
-    }
-    return;
-  }
-
-  const transporter = getTransporter();
-  const recipientName = name ? ` ${name}` : "";
-
-  const subject = "Reset your DTR password";
-  const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }
-    .container { max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e2e8f0; }
-    .title { font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px; }
-    .text { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
-    .button { display: inline-block; background-color: #4f46e5; color: #ffffff !important; text-decoration: none; padding: 12px 24px; font-weight: 600; font-size: 14px; border-radius: 8px; text-align: center; }
-    .footer { margin-top: 32px; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1 class="title">Reset Your Password</h1>
-    <p class="text">Hi${recipientName},</p>
-    <p class="text">We received a request to reset your password for your Daily Time Record (DTR) account. Click the button below to set a new password:</p>
-    <div style="text-align: center; margin: 32px 0;">
-      <a href="${resetUrl}" class="button" target="_blank">Reset Password</a>
-    </div>
-    <p class="text" style="font-size: 13px;">This link will expire in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>
-    <div class="footer">
-      <p style="margin: 0;">Daily Time Record (DTR) &bull; OJT Attendance Tracker</p>
-      <p style="margin: 4px 0 0 0; word-break: break-all; color: #94a3b8;">${resetUrl}</p>
-    </div>
-  </div>
-</body>
-</html>
-`;
-
-  const textContent = `Hi${recipientName},\n\nWe received a request to reset your password for your DTR account.\n\nClick the link below to set a new password (valid for 1 hour):\n${resetUrl}\n\nIf you did not make this request, you can safely ignore this email.`;
-
-  if (!transporter) {
+  if (!serviceId || !templateId || !publicKey) {
     console.log("=================================================");
     console.log(" [DEV EMAIL] Password Reset Link Generated:");
     console.log(` To: ${to}`);
     console.log(` Reset URL: ${resetUrl}`);
+    console.log(
+      " Note: Configure EMAILJS_* environment variables to send real emails via EmailJS."
+    );
     console.log("=================================================");
     return;
   }
 
-  const from = process.env.EMAIL_FROM || `DTR Support <${process.env.SMTP_USER}>`;
+  console.log(
+    `[Email] Dispatching password reset email to ${to} via EmailJS REST API...`
+  );
 
-  console.log(`[Email] Dispatching password reset email to ${to} via Gmail SMTP...`);
+  const payload: Record<string, unknown> = {
+    service_id: serviceId,
+    template_id: templateId,
+    user_id: publicKey,
+    template_params: {
+      to_email: to,
+      to_name: name || "User",
+      reset_url: resetUrl,
+    },
+  };
 
-  const info = await transporter.sendMail({
-    from,
-    to,
-    subject,
-    text: textContent,
-    html: htmlContent,
-  });
+  if (privateKey) {
+    payload.accessToken = privateKey;
+  }
 
-  console.log(`[Email] Email sent successfully via Gmail SMTP! MessageId: ${info.messageId}`);
+  const response = await postJson(
+    "https://api.emailjs.com/api/v1.0/email/send",
+    payload
+  );
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(
+      `EmailJS API failed (${response.status}): ${response.body}`
+    );
+  }
+
+  console.log(
+    `[Email] Password reset email sent successfully via EmailJS! Response: ${response.body}`
+  );
 }
