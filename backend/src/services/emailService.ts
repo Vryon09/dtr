@@ -1,5 +1,51 @@
+import https from "node:https";
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
+
+function postJson(
+  targetUrl: string,
+  payload: unknown
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(targetUrl);
+    const postData = JSON.stringify(payload);
+
+    const req = https.request(
+      {
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        port: parsed.port || (parsed.protocol === "https:" ? 443 : 80),
+        path: parsed.pathname + parsed.search,
+        method: "POST",
+        family: 4, // Explicitly force IPv4 to avoid Render container IPv6 ETIMEDOUT
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(postData),
+        },
+        timeout: 15000,
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => {
+          resolve({ status: res.statusCode || 200, body });
+        });
+      }
+    );
+
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("Request timed out connecting to email proxy"));
+    });
+
+    req.on("error", (err) => {
+      reject(err);
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
 
 interface SendPasswordResetOptions {
   to: string;
@@ -53,21 +99,20 @@ export async function sendPasswordResetEmail({
       `[Email] Dispatching password reset email to ${to} via Netlify proxy (${proxyUrl})...`
     );
     const secret = process.env.EMAIL_PROXY_SECRET || process.env.JWT_SECRET;
-    const response = await fetch(proxyUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to, name, resetUrl, secret }),
-    });
+    const response = await postJson(proxyUrl, { to, name, resetUrl, secret });
 
-    if (!response.ok) {
-      const errorText = await response.text();
+    if (response.status < 200 || response.status >= 300) {
       throw new Error(
-        `Netlify email proxy failed (${response.status}): ${errorText}`
+        `Netlify email proxy failed (${response.status}): ${response.body}`
       );
     }
 
-    const data = await response.json();
-    console.log(`[Email] Email sent successfully via Netlify proxy!`, data);
+    try {
+      const data = JSON.parse(response.body);
+      console.log(`[Email] Email sent successfully via Netlify proxy!`, data);
+    } catch {
+      console.log(`[Email] Email sent successfully via Netlify proxy!`, response.body);
+    }
     return;
   }
 
