@@ -42,6 +42,35 @@ export async function sendPasswordResetEmail({
   name,
   resetUrl,
 }: SendPasswordResetOptions): Promise<void> {
+  const proxyUrl =
+    process.env.EMAIL_PROXY_URL ||
+    (process.env.CLIENT_URL && process.env.CLIENT_URL.startsWith("https://")
+      ? `${process.env.CLIENT_URL}/.netlify/functions/send-email`
+      : null);
+
+  if (proxyUrl) {
+    console.log(
+      `[Email] Dispatching password reset email to ${to} via Netlify proxy (${proxyUrl})...`
+    );
+    const secret = process.env.EMAIL_PROXY_SECRET || process.env.JWT_SECRET;
+    const response = await fetch(proxyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, name, resetUrl, secret }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Netlify email proxy failed (${response.status}): ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log(`[Email] Email sent successfully via Netlify proxy!`, data);
+    return;
+  }
+
   const transporter = getTransporter();
   const recipientName = name ? ` ${name}` : "";
 
