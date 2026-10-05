@@ -13,15 +13,23 @@ function getTransporter(): Transporter | null {
   if (mailTransporter) return mailTransporter;
 
   const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const rawPass = process.env.SMTP_PASS;
+  const host = process.env.SMTP_HOST || "smtp.gmail.com";
+  const port = Number(process.env.SMTP_PORT) || 465;
 
-  if (user && pass) {
+  if (user && rawPass) {
+    const pass = rawPass.replace(/\s+/g, "");
     mailTransporter = nodemailer.createTransport({
-      service: "gmail",
+      host,
+      port,
+      secure: port === 465,
       auth: {
         user,
         pass,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
     return mailTransporter;
   }

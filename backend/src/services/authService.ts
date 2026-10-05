@@ -126,10 +126,12 @@ export async function requestPasswordReset(email: string): Promise<void> {
   const clientBaseUrl = process.env.CLIENT_URL || "http://localhost:5173";
   const resetUrl = `${clientBaseUrl}/reset-password?token=${rawToken}`;
 
-  await sendPasswordResetEmail({
+  sendPasswordResetEmail({
     to: user.email,
     name: user.name,
     resetUrl,
+  }).catch((err) => {
+    console.error("[Email] Failed to send password reset email in background:", err);
   });
 }
 
