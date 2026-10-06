@@ -1077,3 +1077,234 @@ input, textarea, select {
   }
 }
 
+/* ==========================================================================
+   Goal Completed Celebration Banner
+   ========================================================================== */
+@keyframes mascotCelebrateFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1.2deg);
+  }
+}
+
+@keyframes celebratePulseAura {
+  0%, 100% {
+    opacity: 0.65;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes progressStripeShimmer {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 40px 0;
+  }
+}
+
+.goal-completed-banner {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(238, 242, 255, 0.95) 0%, rgba(254, 243, 199, 0.65) 48%, rgba(236, 253, 245, 0.95) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  border-radius: var(--radius-xl);
+  padding: 24px 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 12px 32px -4px rgba(99, 102, 241, 0.12), 0 4px 14px -2px rgba(16, 185, 129, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  backdrop-filter: blur(12px);
+}
+
+.goal-completed-banner-content {
+  flex: 1;
+  min-width: 280px;
+  z-index: 1;
+}
+
+.goal-completed-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.goal-completed-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
+}
+
+.goal-completed-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.16);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.goal-completed-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.25;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.goal-completed-desc {
+  font-size: 0.925rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 620px;
+  margin-bottom: 14px;
+}
+
+.goal-completed-desc strong {
+  color: var(--text-main);
+}
+
+.goal-completed-progress-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  max-width: 480px;
+}
+
+.goal-completed-progress-bar-track {
+  flex: 1;
+  height: 9px;
+  background: rgba(139, 92, 246, 0.14);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  position: relative;
+}
+
+.goal-completed-progress-bar-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #10b981 0%, #06b6d4 50%, #8b5cf6 100%);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.goal-completed-progress-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--success-text);
+  background: var(--success-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.goal-completed-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.goal-completed-mascot-pane {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.goal-completed-mascot-aura {
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.45) 0%, rgba(251, 191, 36, 0.28) 42%, rgba(16, 185, 129, 0.15) 70%, transparent 75%);
+  filter: blur(18px);
+  animation: celebratePulseAura 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.goal-completed-mascot-img {
+  position: relative;
+  width: 185px;
+  height: auto;
+  max-height: 165px;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 22px rgba(79, 70, 229, 0.22));
+  animation: mascotCelebrateFloat 3.8s ease-in-out infinite;
+  user-select: none;
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .goal-completed-banner {
+    flex-direction: column-reverse;
+    text-align: center;
+    padding: 22px 20px;
+    gap: 18px;
+  }
+
+  .goal-completed-badges,
+  .goal-completed-title,
+  .goal-completed-progress-strip,
+  .goal-completed-actions {
+    justify-content: center;
+  }
+
+  .goal-completed-desc {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .goal-completed-mascot-img {
+    width: 140px;
+    max-height: 125px;
+  }
+
+  .goal-completed-mascot-aura {
+    width: 140px;
+    height: 140px;
+  }
+}
+
+@media (max-width: 520px) {
+  .goal-completed-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .goal-completed-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+

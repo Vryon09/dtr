@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Award, Plus, CheckCircle } from 'lucide-react';
+import { Sparkles, Plus, CheckCircle } from 'lucide-react';
 import { Button } from '../common/Button';
 import { CreateInternshipModal } from '../internship/CreateInternshipModal';
 import { useActiveInternship, useUpdateInternshipMutation } from '../../hooks/useInternshipQueries';
+import owlMascotCelebrate from '../../assets/own-mascot-celebrate.png';
 
 interface GoalCompletedBannerProps {
   completedHours: number;
@@ -32,101 +33,71 @@ export const GoalCompletedBanner: React.FC<GoalCompletedBannerProps> = ({
 
   return (
     <>
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          borderRadius: '16px',
-          padding: '18px 24px',
-          marginBottom: '24px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '280px', flex: 1 }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-              flexShrink: 0,
-            }}
-          >
-            <Award size={26} />
+      <div className="goal-completed-banner">
+        {/* Content Column */}
+        <div className="goal-completed-banner-content">
+          <div className="goal-completed-badges">
+            <span className="goal-completed-tag">
+              <Sparkles size={13} />
+              <span>Milestone Achieved</span>
+            </span>
+            {isCompleted && (
+              <span className="goal-completed-status-badge">
+                <CheckCircle size={13} />
+                <span>Completed</span>
+              </span>
+            )}
           </div>
 
-          <div>
-            <div
-              style={{
-                fontSize: '1.05rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <span>Goal Hours Reached!</span>
-              {isCompleted && (
-                <span
-                  style={{
-                    fontSize: '0.725rem',
-                    background: 'rgba(16, 185, 129, 0.2)',
-                    color: 'var(--success)',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    fontWeight: 600,
-                  }}
-                >
-                  Completed
-                </span>
-              )}
+          <h2 className="goal-completed-title">
+            <span>Goal Hours Reached!</span>
+          </h2>
+
+          <p className="goal-completed-desc">
+            Amazing milestone! You rendered <strong>{completedHours}</strong> of{' '}
+            <strong>{requiredHours}</strong> required hours for{' '}
+            <strong>{activeInternship.title}</strong>. Ready to embark on your 2nd internship or OJT?
+          </p>
+
+          <div className="goal-completed-progress-strip">
+            <div className="goal-completed-progress-bar-track">
+              <div className="goal-completed-progress-bar-fill" />
             </div>
-            <p
-              style={{
-                margin: '4px 0 0',
-                fontSize: '0.875rem',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.4,
-              }}
+            <span className="goal-completed-progress-label">
+              {completedHours} / {requiredHours} hrs (100%)
+            </span>
+          </div>
+
+          <div className="goal-completed-actions">
+            {!isCompleted && (
+              <Button
+                variant="outline"
+                onClick={handleMarkCompleted}
+                isLoading={updateMutation.isPending}
+                icon={<CheckCircle size={16} />}
+              >
+                <span>Mark as Completed</span>
+              </Button>
+            )}
+
+            <Button
+              variant="primary"
+              onClick={() => setIsModalOpen(false || true)}
+              icon={<Plus size={16} />}
             >
-              You have rendered <strong>{completedHours}</strong> of <strong>{requiredHours}</strong> required hours for{' '}
-              <strong>{activeInternship.title}</strong>. Ready for your 2nd internship or OJT?
-            </p>
+              <span>Start 2nd Internship / OJT</span>
+            </Button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {!isCompleted && (
-            <Button
-              variant="outline"
-              onClick={handleMarkCompleted}
-              isLoading={updateMutation.isPending}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <CheckCircle size={16} />
-              <span>Mark as Completed</span>
-            </Button>
-          )}
-
-          <Button
-            variant="primary"
-            onClick={() => setIsModalOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Plus size={16} />
-            <span>Start 2nd Internship / OJT</span>
-          </Button>
+        {/* Mascot Column */}
+        <div className="goal-completed-mascot-pane">
+          <div className="goal-completed-mascot-aura" aria-hidden="true" />
+          <img
+            src={owlMascotCelebrate}
+            alt="Celebrating owl mascot"
+            className="goal-completed-mascot-img"
+          />
         </div>
       </div>
 
@@ -138,3 +109,4 @@ export const GoalCompletedBanner: React.FC<GoalCompletedBannerProps> = ({
     </>
   );
 };
+
